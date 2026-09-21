@@ -610,9 +610,11 @@
         if (reference.trim()) addressText += ` (Ref: ${reference})`;
 
         try {
-          const { db, collection, addDoc } = window.firebaseAPI;
+          const { db, auth, collection, addDoc } = window.firebaseAPI;
+          const customerUid = auth.currentUser?.uid;
+          if (!customerUid) throw new Error('Autenticação anônima ainda não concluída.');
           const docRef = await addDoc(collection(db, 'orders'), {
-            customerName, customerPhone, customerAddress: addressText, 
+            customerUid, customerName, customerPhone, customerAddress: addressText, 
             items: cart, subtotal: itemsTotal, deliveryFee: deliveryFee, total: cartTotal, 
             paymentMethod: paymentMethod, phone: WHATSAPP_NUMBER, status: 'pendente', source: 'whatsapp', createdAt: Date.now()
           });
