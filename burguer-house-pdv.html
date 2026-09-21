@@ -695,6 +695,32 @@
         });
       };
 
+      const addManualProductWithAddons = (product) => {
+        if (product.paused) return;
+        const chosenAddons = addons.filter(a => selectedAddons[a.id]);
+        const addonsTotal = chosenAddons.reduce((acc, a) => acc + a.price, 0);
+        const cartItem = {
+          id: `manual_${product.id}_${chosenAddons.map(a => a.id).join('_')}_${productNote.trim()}`,
+          productId: product.id,
+          name: product.name,
+          basePrice: parseFloat(product.price),
+          price: parseFloat(product.price) + addonsTotal,
+          addons: chosenAddons,
+          note: productNote.trim(),
+          quantity: 1
+        };
+        setCart(prev => {
+          const existing = prev.find(item => item.id === cartItem.id);
+          if (existing) return prev.map(item => item.id === cartItem.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item);
+          return [...prev, cartItem];
+        });
+        setSelectedProduct(null);
+        setSelectedAddons({});
+        setProductNote('');
+      };
+
       const handleAddProduct = async (e) => {
         e.preventDefault();
         if (!newProduct.name || !newProduct.price) return;
@@ -1151,7 +1177,7 @@
                     </div>
 
                     <div className="p-6 bg-zinc-950 border-t border-zinc-800">
-                      <button onClick={() => addToCartWithAddons(selectedProduct)} className="w-full bg-amber-500 text-black py-4 rounded-2xl font-black text-lg shadow-[0_5px_20px_rgba(245,158,11,0.3)]">
+                      <button onClick={() => manualOrderOpen ? addManualProductWithAddons(selectedProduct) : addToCartWithAddons(selectedProduct)} className="w-full bg-amber-500 text-black py-4 rounded-2xl font-black text-lg shadow-[0_5px_20px_rgba(245,158,11,0.3)]">
                         Adicionar à Sacola
                       </button>
                     </div>
