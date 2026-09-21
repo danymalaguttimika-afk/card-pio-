@@ -134,6 +134,7 @@
       const [cart, setCart] = useState([]);
       const [isCartOpen, setIsCartOpen] = useState(false);
       const [selectedProduct, setSelectedProduct] = useState(null);
+      const [manualSelectedProduct, setManualSelectedProduct] = useState(null);
       const [selectedAddons, setSelectedAddons] = useState({});
       const [productNote, setProductNote] = useState("");
       const [paymentMethod, setPaymentMethod] = useState("Pix"); 
@@ -695,32 +696,6 @@
         });
       };
 
-      const addManualProductWithAddons = (product) => {
-        if (product.paused) return;
-        const chosenAddons = addons.filter(a => selectedAddons[a.id]);
-        const addonsTotal = chosenAddons.reduce((acc, a) => acc + a.price, 0);
-        const cartItem = {
-          id: `manual_${product.id}_${chosenAddons.map(a => a.id).join('_')}_${productNote.trim()}`,
-          productId: product.id,
-          name: product.name,
-          basePrice: parseFloat(product.price),
-          price: parseFloat(product.price) + addonsTotal,
-          addons: chosenAddons,
-          note: productNote.trim(),
-          quantity: 1
-        };
-        setCart(prev => {
-          const existing = prev.find(item => item.id === cartItem.id);
-          if (existing) return prev.map(item => item.id === cartItem.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item);
-          return [...prev, cartItem];
-        });
-        setSelectedProduct(null);
-        setSelectedAddons({});
-        setProductNote('');
-      };
-
       const handleAddProduct = async (e) => {
         e.preventDefault();
         if (!newProduct.name || !newProduct.price) return;
@@ -1177,7 +1152,7 @@
                     </div>
 
                     <div className="p-6 bg-zinc-950 border-t border-zinc-800">
-                      <button onClick={() => manualOrderOpen ? addManualProductWithAddons(selectedProduct) : addToCartWithAddons(selectedProduct)} className="w-full bg-amber-500 text-black py-4 rounded-2xl font-black text-lg shadow-[0_5px_20px_rgba(245,158,11,0.3)]">
+                      <button onClick={() => addToCartWithAddons(selectedProduct)} className="w-full bg-amber-500 text-black py-4 rounded-2xl font-black text-lg shadow-[0_5px_20px_rgba(245,158,11,0.3)]">
                         Adicionar à Sacola
                       </button>
                     </div>
@@ -1435,7 +1410,12 @@
                         <input value={reference} onChange={e => setReference(e.target.value)} placeholder="Referência (opcional)" className="col-span-2 bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-3 text-sm" />
                       </div>}
                       <h4 className="font-black text-sm mb-2">Produtos</h4>
-                      <div className="grid grid-cols-2 gap-2 mb-4">{products.filter(p => !p.paused).map(product => <button key={product.id} onClick={() => { setSelectedProduct(product); setSelectedAddons({}); setProductNote(''); }} className="text-left bg-amber-50 border border-amber-200 rounded-xl p-3"><span className="block font-bold text-xs">{product.name}</span><span className="text-xs font-black">R$ {parseFloat(product.price).toFixed(2)}</span></button>)}</div>
+                      <div className="grid grid-cols-2 gap-2 mb-4">{products.filter(p => !p.paused).map(product => <button key={product.id} onClick={() => { setManualSelectedProduct(product); setSelectedAddons({}); setProductNote(''); }} className="text-left bg-amber-50 border border-amber-200 rounded-xl p-3"><span className="block font-bold text-xs">{product.name}</span><span className="text-xs font-black">R$ {parseFloat(product.price).toFixed(2)}</span></button>)}</div>
+                      {manualSelectedProduct && <div className="bg-zinc-900 text-white rounded-xl p-3 mb-4">
+                        <div className="flex justify-between items-center mb-2"><b className="text-sm">{manualSelectedProduct.name}</b><button onClick={() => setManualSelectedProduct(null)} className="text-red-300 font-bold">✕</button></div>
+                        {addons.length > 0 ? <div className="space-y-2 mb-3">{addons.map(addon => <label key={addon.id} className="flex items-center justify-between bg-zinc-800 p-2 rounded-lg text-xs"><span className="flex items-center gap-2"><input type="checkbox" checked={!!selectedAddons[addon.id]} onChange={e => setSelectedAddons({...selectedAddons, [addon.id]: e.target.checked})} />{addon.name}</span><b>+ R$ {addon.price.toFixed(2)}</b></label>)}</div> : <p className="text-xs text-zinc-300 mb-3">Este produto não possui adicionais cadastrados.</p>}
+                        <button onClick={() => addManualProductWithAddons(manualSelectedProduct)} className="w-full bg-amber-500 text-black py-3 rounded-xl font-black text-sm">Adicionar produto</button>
+                      </div>}
                       {cart.length > 0 && <div className="bg-zinc-100 rounded-xl p-3 mb-4 space-y-2">{cart.map(item => <div key={item.id} className="flex justify-between text-sm"><span><b>{item.quantity}x</b> {item.name}</span><span className="font-bold">R$ {(item.price * item.quantity).toFixed(2)}</span></div>)}<div className="border-t border-zinc-300 pt-2 flex justify-between font-black">Total <span>R$ {(itemsTotal + (manualOrderType === 'Entrega' ? deliveryFee : 0)).toFixed(2)}</span></div></div>}
                       <button onClick={handleCreateManualOrder} className="w-full bg-amber-500 text-black py-4 rounded-2xl font-black">Salvar pedido no PDV</button>
                     </div>
