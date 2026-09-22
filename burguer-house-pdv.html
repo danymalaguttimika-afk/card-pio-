@@ -498,6 +498,8 @@
         if (!window.confirm("Deseja realmente fechar o caixa do dia?")) return;
         const countedCash = parseFloat(closingCashInput);
         if (isNaN(countedCash) || countedCash < 0) return alert('Informe quanto dinheiro foi contado na gaveta.');
+        const closingDifference = Number((countedCash - expectedCashInDrawer).toFixed(2));
+        if (closingDifference !== 0 && !window.confirm(`Foi identificada uma ${closingDifference < 0 ? 'falta' : 'sobra'} de R$ ${Math.abs(closingDifference).toFixed(2)}. Deseja fechar mesmo assim?`)) return;
 
         // Ao fechar, garante que puxa os mesmos pedidos computados na sessão
         const closedCashList = cashRegisters.filter(c => c.status === 'fechado');
