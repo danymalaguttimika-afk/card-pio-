@@ -200,6 +200,7 @@
       const [crmCustomers, setCrmCustomers] = useState([]);
       const [crmCoupons, setCrmCoupons] = useState([]);
       const [couponSearch, setCouponSearch] = useState('');
+      const [campaignHistory, setCampaignHistory] = useState(() => { try { return JSON.parse(localStorage.getItem('burguer_campaign_history') || '[]'); } catch { return []; } });
       const [promoTemplate, setPromoTemplate] = useState("Olá [Nome]! Tudo bem? Passando para avisar que hoje o cardápio da Burguer House está recheado de delícias. Que tal pedir seu lanche favorito agora? 🍔🔥");
       const [analysisStartDate, setAnalysisStartDate] = useState("");
       const [analysisEndDate, setAnalysisEndDate] = useState("");
@@ -427,6 +428,13 @@
           const { db, doc, setDoc } = window.firebaseAPI;
           await setDoc(doc(db, 'settings', 'motoboys'), { list: updatedList }, { merge: true });
         } catch (error) { alert("Erro ao remover motoboy."); }
+      };
+
+      const handleCampaignOpen = (client, message, url) => {
+        const entry = { id: Date.now(), customerName: client.name || 'Cliente', customerPhone: client.phone || '', type: 'promoção', status: 'mensagem preparada', createdAt: Date.now() };
+        const next = [entry, ...campaignHistory].slice(0, 100);
+        setCampaignHistory(next); localStorage.setItem('burguer_campaign_history', JSON.stringify(next));
+        window.open(url, '_blank');
       };
 
       const handleOpenCash = async (e) => {
@@ -1832,6 +1840,13 @@
                       {crmCoupons.length > 0 && couponSearch && !crmCoupons.some(c => String(c.code || '').toLowerCase().includes(couponSearch.toLowerCase()) || String(c.customerName || '').toLowerCase().includes(couponSearch.toLowerCase())) && <p className="text-xs text-zinc-500">Nenhum cupom encontrado.</p>}
                     </div>
 
+                    <div className="bg-white rounded-3xl p-5 shadow-sm border border-zinc-200 space-y-2">
+                      <div className="flex justify-between items-center"><h3 className="font-black text-base">📣 Histórico de campanhas</h3><span className="text-xs text-zinc-500">{campaignHistory.length} registradas</span></div>
+                      <p className="text-[10px] text-zinc-500">Registra quando uma mensagem foi preparada para envio. O envio continua dependendo da confirmação do operador no WhatsApp.</p>
+                      {campaignHistory.slice(0, 5).map(item => <div key={item.id} className="flex justify-between text-xs border-t border-zinc-100 pt-2"><span><b>{item.customerName}</b> · {item.type}</span><span className="text-zinc-400">{new Date(item.createdAt).toLocaleDateString('pt-BR')}</span></div>)}
+                      {campaignHistory.length === 0 && <p className="text-xs text-zinc-400">Nenhuma campanha preparada ainda.</p>}
+                    </div>
+
                     <div className="space-y-3">
                       {displayedClients.map(client => {
                         const customMsg = promoTemplate.replace(/\[Nome\]/g, client.name);
@@ -1881,13 +1896,9 @@
                             }} className="w-full bg-zinc-900 text-white py-3 rounded-2xl text-xs font-black shadow-sm mt-1">
                               ✏️ Editar cadastro CRM
                             </button>
-                            <a 
-                              href={waLink} 
-                              target="_blank" 
-                              className="w-full bg-[#25D366] text-white py-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm"
-                            >
-                              💬 Enviar Promoção no WhatsApp
-                            </a>
+                            <button type="button" onClick={() => handleCampaignOpen(client, customMsg, waLink)} className="w-full bg-[#25D366] text-white py-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm">
+                              💬 Preparar Promoção no WhatsApp
+                            </button>
                           </div>
                         );
                       })}
