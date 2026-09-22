@@ -180,6 +180,10 @@
       const [leadFilter, setLeadFilter] = useState('all');
       const [syncingCustomers, setSyncingCustomers] = useState(false);
       const [syncCustomersMessage, setSyncCustomersMessage] = useState('');
+      const [editingClient, setEditingClient] = useState(null);
+      const [birthdayInput, setBirthdayInput] = useState('');
+      const [birthdayConsentInput, setBirthdayConsentInput] = useState(false);
+      const [notesInput, setNotesInput] = useState('');
       const [promoTemplate, setPromoTemplate] = useState("Olá [Nome]! Tudo bem? Passando para avisar que hoje o cardápio da Burguer House está recheado de delícias. Que tal pedir seu lanche favorito agora? 🍔🔥");
       const [analysisStartDate, setAnalysisStartDate] = useState("");
       const [analysisEndDate, setAnalysisEndDate] = useState("");
@@ -1688,10 +1692,18 @@
                               </div>
                             </div>
 
+                            <button type="button" onClick={() => {
+                              setEditingClient(client);
+                              setBirthdayInput('');
+                              setBirthdayConsentInput(false);
+                              setNotesInput('');
+                            }} className="w-full bg-zinc-900 text-white py-3 rounded-2xl text-xs font-black shadow-sm mt-1">
+                              ✏️ Editar cadastro CRM
+                            </button>
                             <a 
                               href={waLink} 
                               target="_blank" 
-                              className="w-full bg-[#25D366] text-white py-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm mt-1"
+                              className="w-full bg-[#25D366] text-white py-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm"
                             >
                               💬 Enviar Promoção no WhatsApp
                             </a>
@@ -1699,6 +1711,38 @@
                         );
                       })}
                       {displayedClients.length === 0 && <div className="text-center text-zinc-400 py-10 text-xs">Nenhum cliente encontrado neste filtro.</div>}
+                    </div>
+                  </div>
+                )}
+
+                {editingClient && (
+                  <div className="fixed inset-0 z-[80] bg-black/70 flex items-end justify-center">
+                    <div className="bg-white w-full max-w-md rounded-t-[2rem] p-5 text-zinc-900 space-y-4">
+                      <div className="flex justify-between items-center">
+                        <div><h3 className="font-black text-xl">Editar cliente</h3><p className="text-xs text-zinc-500">{editingClient.name} · {editingClient.phone}</p></div>
+                        <button type="button" onClick={() => setEditingClient(null)} className="text-red-500 font-black text-xl">✕</button>
+                      </div>
+                      <div>
+                        <label className="text-xs font-black uppercase">Aniversário</label>
+                        <input type="text" inputMode="numeric" placeholder="MM-DD" maxLength="5" value={birthdayInput} onChange={e => setBirthdayInput(e.target.value.replace(/[^0-9-]/g, '').slice(0, 5))} className="w-full border rounded-xl px-3 py-3 mt-1" />
+                        <p className="text-[10px] text-zinc-500 mt-1">Use somente mês e dia, por exemplo: 05-18.</p>
+                      </div>
+                      <label className="flex gap-2 items-center text-sm"><input type="checkbox" checked={birthdayConsentInput} onChange={e => setBirthdayConsentInput(e.target.checked)} /> Cliente autorizou receber campanha de aniversário</label>
+                      <div><label className="text-xs font-black uppercase">Observações internas</label><textarea value={notesInput} onChange={e => setNotesInput(e.target.value)} className="w-full border rounded-xl px-3 py-3 mt-1 h-20" placeholder="Preferências ou observações do cliente" /></div>
+                      <button type="button" onClick={async () => {
+                        const phone = normalizePhone(editingClient.phone);
+                        if (!phone) return alert('Telefone inválido.');
+                        if (birthdayInput && !/^\d{2}-\d{2}$/.test(birthdayInput)) return alert('Use o formato MM-DD, por exemplo 05-18.');
+                        const month = birthdayInput ? Number(birthdayInput.slice(0, 2)) : 0;
+                        const day = birthdayInput ? Number(birthdayInput.slice(3, 5)) : 0;
+                        if (birthdayInput && (month < 1 || month > 12 || day < 1 || day > 31)) return alert('Data de aniversário inválida.');
+                        try {
+                          const { db, doc, setDoc } = window.firebaseAPI;
+                          await setDoc(doc(db, 'customers', phone), { birthday: birthdayInput || null, birthdayConsent: birthdayConsentInput, notes: notesInput.trim(), updatedAt: new Date() }, { merge: true });
+                          setEditingClient(null);
+                          alert('✅ Cadastro atualizado.');
+                        } catch (err) { console.error(err); alert('❌ Não foi possível atualizar o cliente.'); }
+                      }} className="w-full bg-amber-500 text-black py-3 rounded-xl font-black">Salvar cadastro</button>
                     </div>
                   </div>
                 )}
