@@ -1840,9 +1840,9 @@
                         if (!couponCode.trim() || !couponDiscountValue || !couponValidUntil) return alert('Preencha código, desconto e validade.');
                         try {
                           const { db, collection, addDoc, auth } = window.firebaseAPI;
-                          await addDoc(collection(db, 'coupons'), { code: couponCode.trim(), type: couponType, discountType: couponDiscountType, discountValue: Number(couponDiscountValue), customerPhone: couponClient.phoneNormalized || normalizePhone(couponClient.phone), customerName: couponClient.name || '', minOrderValue: Number(couponMinOrder) || 0, validUntil: new Date(`${couponValidUntil}T23:59:59`), usageLimit: Number(couponUsageLimit) || 1, usedCount: 0, active: true, createdBy: auth.currentUser?.uid || '', createdAt: new Date() });
+                          await addDoc(collection(db, 'coupons'), { code: couponCode.trim(), type: couponType, discountType: couponDiscountType, discountValue: Number(couponDiscountValue), customerPhone: couponClient.phoneNormalized || normalizePhone(couponClient.phone) || '', customerName: couponClient.name || '', minOrderValue: Number(couponMinOrder) || 0, validUntil: new Date(`${couponValidUntil}T23:59:59`), usageLimit: Number(couponUsageLimit) || 1, usedCount: 0, active: true, createdBy: auth.currentUser?.uid || '', createdAt: new Date() });
                           setCouponClient(null); alert('✅ Cupom criado.');
-                        } catch (err) { console.error(err); alert('❌ Não foi possível criar o cupom.'); }
+                        } catch (err) { console.error(err); alert(`❌ Não foi possível criar o cupom.\n${err?.code || err?.message || 'Erro desconhecido'}`); }
                       }} className="w-full bg-purple-900 text-white py-3 rounded-xl font-black">Salvar cupom</button>
                     </div>
                   </div>
