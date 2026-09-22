@@ -1157,12 +1157,17 @@
               const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
               return typeof c.birthday === 'string' && c.birthday.slice(0, 2) === currentMonth;
             })
-            .map(c => ({
-              ...c,
-              phone: c.phone || c.phoneNormalized || '',
-              ordersCount: Number(c.totalOrders) || 0,
-              daysAgo: c.lastOrderAt ? Math.floor((now - (c.lastOrderAt.toDate ? c.lastOrderAt.toDate().getTime() : c.lastOrderAt)) / (1000 * 60 * 60 * 24)) : 0
-            }))
+            .map(c => {
+              const base = uniqueClients.find(item => normalizePhone(item.phone) === (c.phoneNormalized || normalizePhone(c.phone)));
+              return {
+                ...base,
+                ...c,
+                name: c.name || base?.name || 'Cliente sem nome',
+                phone: c.phone || base?.phone || c.phoneNormalized || '',
+                ordersCount: Number(c.totalOrders ?? base?.ordersCount ?? 0),
+                daysAgo: c.lastOrderAt ? Math.floor((now - (c.lastOrderAt.toDate ? c.lastOrderAt.toDate().getTime() : c.lastOrderAt)) / (1000 * 60 * 60 * 24)) : (base?.daysAgo || 0)
+              };
+            })
         : uniqueClients.filter(c => {
             if (leadFilter === 'loyal') return c.ordersCount >= 2;
             if (leadFilter === 'churned') return c.daysAgo >= 15;
