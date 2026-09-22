@@ -1692,11 +1692,22 @@
                               </div>
                             </div>
 
-                            <button type="button" onClick={() => {
+                            <button type="button" onClick={async () => {
                               setEditingClient(client);
                               setBirthdayInput('');
                               setBirthdayConsentInput(false);
                               setNotesInput('');
+                              try {
+                                const phone = normalizePhone(client.phone);
+                                const { db, doc, getDoc } = window.firebaseAPI;
+                                const snap = await getDoc(doc(db, 'customers', phone));
+                                if (snap.exists()) {
+                                  const data = snap.data();
+                                  setBirthdayInput(data.birthday || '');
+                                  setBirthdayConsentInput(data.birthdayConsent === true);
+                                  setNotesInput(data.notes || '');
+                                }
+                              } catch (err) { console.error('Erro ao carregar cadastro:', err); }
                             }} className="w-full bg-zinc-900 text-white py-3 rounded-2xl text-xs font-black shadow-sm mt-1">
                               ✏️ Editar cadastro CRM
                             </button>
