@@ -1835,7 +1835,7 @@
                               <div className="flex flex-col items-end">
                                 <span className="bg-amber-100 text-amber-900 font-black text-[10px] px-2.5 py-0.5 rounded-full mb-1">{client.ordersCount} {client.ordersCount === 1 ? 'pedido' : 'pedidos'}</span>
                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${client.daysAgo >= 30 ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-600'}`}>
-                                  {client.daysAgo === 0 ? 'Pediu hoje' : `Sumido há ${client.daysAgo}d`}
+                                  {!client.ordersCount ? 'Sem pedidos' : client.daysAgo === 0 ? 'Pediu hoje' : `Último pedido há ${client.daysAgo}d`}
                                 </span>
                               </div>
                             </div>
