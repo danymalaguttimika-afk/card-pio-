@@ -895,6 +895,7 @@
       const printOrder = (order) => {
         const subtotal = order.subtotal !== undefined ? order.subtotal : (order.total - (order.deliveryFee || 0));
         const fee = order.deliveryFee !== undefined ? order.deliveryFee : 0;
+        const discount = Number(order.discountAmount || 0);
         let html = `
           <!DOCTYPE html>
           <html><head><title>Impressão</title>
@@ -938,6 +939,7 @@
               </table>
               <div style="border-top: 1px dashed black; margin-top: 10px; padding-top: 5px; font-size: 14px;">
                 <div style="display: flex; justify-content: space-between;"><span>Subtotal:</span><span>R$ ${subtotal.toFixed(2)}</span></div>
+                ${discount > 0 ? `<div style="display: flex; justify-content: space-between; color:#15803d;"><span>Desconto${order.couponCode ? ` (${order.couponCode})` : ''}:</span><span>- R$ ${discount.toFixed(2)}</span></div>` : ''}
                 <div style="display: flex; justify-content: space-between;"><span>Taxa Entrega:</span><span>R$ ${fee.toFixed(2)}</span></div>
               </div>
               <div class="text-right" style="margin-top: 5px; border-top: 1px dashed black; padding-top: 5px; font-size: 18px; font-weight: bold;">
@@ -1668,7 +1670,8 @@
                               </div>
                             ))}
                             <div className="pt-2 mt-2 border-t border-zinc-200 text-xs text-zinc-600 space-y-1">
-                              <div className="flex justify-between"><span>Subtotal:</span> <span>R$ {(order.subtotal || (order.total - (order.deliveryFee || 0))).toFixed(2)}</span></div>
+                              <div className="flex justify-between"><span>Subtotal:</span> <span>R$ {(order.subtotal || (order.total - (order.deliveryFee || 0) + (order.discountAmount || 0))).toFixed(2)}</span></div>
+                              {Number(order.discountAmount || 0) > 0 && <div className="flex justify-between text-green-700"><span>Desconto{order.couponCode ? ` (${order.couponCode})` : ''}:</span> <span>- R$ {Number(order.discountAmount).toFixed(2)}</span></div>}
                               <div className="flex justify-between"><span>Taxa Entrega:</span> <span>R$ {(order.deliveryFee || 0).toFixed(2)}</span></div>
                               <div className="flex justify-between font-black text-sm text-zinc-900 pt-1"><span>Total:</span> <span>R$ {order.total.toFixed(2)}</span></div>
                             </div>
@@ -1974,6 +1977,7 @@
                         <div key={order.id} className="border border-zinc-200 rounded-2xl p-3 space-y-2">
                           <div className="flex justify-between text-xs"><b>#{order.id.substring(0, 5).toUpperCase()}</b><span>{parseOrderDate(order.createdAt)?.toLocaleDateString('pt-BR') || '-'}</span></div>
                           <div className="text-sm">{(order.items || []).map((item, idx) => <div key={idx}><b>{item.quantity}x</b> {item.name}{item.addons?.length ? <span className="block text-xs text-zinc-500 pl-4">+ {item.addons.map(a => `${a.name} (R$ ${Number(a.price || 0).toFixed(2)})`).join(', ')}</span> : null}</div>)}</div>
+                          {Number(order.discountAmount || 0) > 0 && <p className="text-xs text-green-700">Cupom {order.couponCode || ''}: - R$ {Number(order.discountAmount).toFixed(2)}</p>}
                           <div className="flex justify-between border-t pt-2 text-sm font-black"><span>{order.status || 'pendente'}</span><span>R$ {Number(order.total || 0).toFixed(2)}</span></div>
                         </div>
                       ))}
