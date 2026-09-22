@@ -206,6 +206,7 @@
       const [promoTemplate, setPromoTemplate] = useState("Olá [Nome]! Tudo bem? Passando para avisar que hoje o cardápio da Burguer House está recheado de delícias. Que tal pedir seu lanche favorito agora? 🍔🔥");
       const [analysisStartDate, setAnalysisStartDate] = useState("");
       const [analysisEndDate, setAnalysisEndDate] = useState("");
+      const [officialStartAt, setOfficialStartAt] = useState(null);
 
       const viewRef = useRef(view);
       useEffect(() => { viewRef.current = view; }, [view]);
@@ -285,6 +286,7 @@
             setPixKeyConfig(data.pixKey || "11999999999");
             setPixInput(data.pixKey || "11999999999");
             setStoreOpen(data.storeOpen !== false);
+            setOfficialStartAt(data.officialStartAt || null);
             
             const adm = data.adminPass || "admin123";
             const ope = data.operatorPass || "1234";
@@ -521,6 +523,12 @@
           });
           alert("Caixa fechado com sucesso!");
         } catch (error) { alert("Erro ao fechar caixa."); }
+      };
+
+      const handleSetOfficialStart = async () => {
+        if (currentCash) return alert('Feche o caixa de teste antes de iniciar a operação oficial.');
+        if (!window.confirm('Marcar agora como início oficial? Os pedidos e caixas anteriores serão ocultados das métricas, mas não serão apagados.')) return;
+        try { const { db, doc, setDoc } = window.firebaseAPI; const timestamp = Date.now(); await setDoc(doc(db, 'settings', 'config'), { officialStartAt: timestamp }, { merge: true }); alert('✅ Início oficial registrado.'); } catch (err) { alert('Não foi possível registrar o início oficial.'); }
       };
 
       const handleSaveConfig = async (e) => {
@@ -980,10 +988,10 @@
       const closedCashRegistersList = cashRegisters.filter(c => c.status === 'fechado');
       const lastClosedTime = closedCashRegistersList.length > 0 ? Math.max(...closedCashRegistersList.map(c => c.closedAt)) : new Date().setHours(0,0,0,0);
 
-      const pdvDisplayOrders = orders.filter(o => o.createdAt >= new Date().setHours(0,0,0,0));
+      const pdvDisplayOrders = orders.filter(o => o.createdAt >= (officialStartAt || new Date().setHours(0,0,0,0)));
 
       // As vendas do caixa agora absorvem qualquer pedido feito no "limbo" enquanto o caixa estava fechado!
-      const activeSessionOrdersValid = currentCash ? orders.filter(o => o.createdAt > lastClosedTime && o.status !== 'cancelado') : [];
+      const activeSessionOrdersValid = currentCash ? orders.filter(o => o.createdAt > Math.max(lastClosedTime, officialStartAt || 0) && o.status !== 'cancelado') : [];
       
       const sessionTotal = activeSessionOrdersValid.reduce((acc, o) => acc + (o.total || 0), 0);
       const sessionPix = activeSessionOrdersValid.filter(o => o.paymentMethod === 'Pix').reduce((acc, o) => acc + (o.total || 0), 0);
@@ -1005,10 +1013,11 @@
         }
       });
 
-      const closedCashRegisters = cashRegisters.filter(c => c.status === 'fechado');
+      const closedCashRegisters = cashRegisters.filter(c => c.status === 'fechado' && (!officialStartAt || c.openedAt >= officialStartAt));
       const monthlyRevenue = closedCashRegisters.reduce((acc, c) => acc + (c.totalSales || 0), 0);
 
       const filteredOrdersForAnalysis = orders.filter(o => {
+        if (officialStartAt && o.createdAt < officialStartAt) return false;
         if (!analysisStartDate && !analysisEndDate) return true;
         const d = new Date(o.createdAt);
         const orderDateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -2309,6 +2318,12 @@
 
                 {pdvTab === 'config' && userRole === 'admin' && (
                   <div className="p-4 space-y-6">
+                    <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 space-y-3">
+                      <h3 className="font-black text-base">🚀 Início oficial da operação</h3>
+                      <p className="text-xs text-amber-900">Oculta dados de teste das métricas de caixa, análise e pedidos sem apagar nada do Firebase.</p>
+                      {officialStartAt && <p className="text-xs font-bold text-green-700">Registrado em {new Date(officialStartAt).toLocaleString('pt-BR')}</p>}
+                      <button type="button" onClick={handleSetOfficialStart} className="w-full bg-amber-500 text-black py-3 rounded-2xl text-xs font-black">{officialStartAt ? 'Atualizar início oficial' : 'Marcar início oficial agora'}</button>
+                    </div>
                     
                     <div className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-200">
                       <h3 className="font-black text-xl mb-2">🏪 Status da Loja (Delivery)</h3>
