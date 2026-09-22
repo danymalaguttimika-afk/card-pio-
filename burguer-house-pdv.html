@@ -1179,10 +1179,13 @@
             return true;
           });
       const displayedClients = filteredClientsByType.filter(client => {
-        const query = clientSearch.trim().toLowerCase();
+        const query = (clientSearchInput || clientSearch).trim().toLowerCase();
         if (!query) return true;
+        const digitsQuery = query.replace(/\D/g, '');
+        const phoneText = String(client.phone || client.phoneNormalized || '');
         return String(client.name || '').toLowerCase().includes(query)
-          || String(client.phone || client.phoneNormalized || '').replace(/\D/g, '').includes(query.replace(/\D/g, ''));
+          || phoneText.toLowerCase().includes(query)
+          || phoneText.replace(/\D/g, '').includes(digitsQuery);
       });
 
       const getCustomerPreferences = (client) => {
