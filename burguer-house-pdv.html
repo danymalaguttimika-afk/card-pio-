@@ -1151,12 +1151,23 @@
         return { ...c, ...(crm || {}), ordersCount: c.ordersCount, daysAgo };
       });
       uniqueClients.sort((a, b) => b.lastOrderAt - a.lastOrderAt);
-      const displayedClients = uniqueClients.filter(c => {
-        if (leadFilter === 'loyal') return c.ordersCount >= 2;
-        if (leadFilter === 'churned') return c.daysAgo >= 15;
-        if (leadFilter === 'birthday') { const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0'); return typeof c.birthday === 'string' && c.birthday.slice(0, 2) === currentMonth; }
-        return true;
-      });
+      const displayedClients = leadFilter === 'birthday'
+        ? crmCustomers
+            .filter(c => {
+              const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+              return typeof c.birthday === 'string' && c.birthday.slice(0, 2) === currentMonth;
+            })
+            .map(c => ({
+              ...c,
+              phone: c.phone || c.phoneNormalized || '',
+              ordersCount: Number(c.totalOrders) || 0,
+              daysAgo: c.lastOrderAt ? Math.floor((now - (c.lastOrderAt.toDate ? c.lastOrderAt.toDate().getTime() : c.lastOrderAt)) / (1000 * 60 * 60 * 24)) : 0
+            }))
+        : uniqueClients.filter(c => {
+            if (leadFilter === 'loyal') return c.ordersCount >= 2;
+            if (leadFilter === 'churned') return c.daysAgo >= 15;
+            return true;
+          });
 
       return (
         <div className="min-h-screen relative pb-20 w-full overflow-x-hidden font-sans">
