@@ -1029,7 +1029,7 @@
       };
 
       const rebuildCustomers = async () => {
-        const { db, collection, getDocs, writeBatch } = window.firebaseAPI;
+        const { db, collection, getDocs, writeBatch, doc } = window.firebaseAPI;
         const snap = await getDocs(collection(db, 'orders'));
         const map = new Map();
 
