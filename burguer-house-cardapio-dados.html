@@ -35,7 +35,7 @@
     h1,h2,h3,h4 { font-family:Georgia, 'Times New Roman', serif; }
     button { border-radius:12px; }
     .rounded-3xl { border-radius:18px !important; }
-    input, textarea, select { background:var(--bh-paper) !important; color:var(--bh-charcoal) !important; border-color:#c7aa80 !important; } .note-input { background:#18181b !important; color:#ffffff !important; -webkit-text-fill-color:#ffffff !important; caret-color:#ffffff !important; border-color:#52525b !important; }
+    input, textarea, select { background:var(--bh-paper) !important; color:var(--bh-charcoal) !important; border-color:#c7aa80 !important; } .note-input, .coupon-input { background:#18181b !important; color:#ffffff !important; -webkit-text-fill-color:#ffffff !important; caret-color:#ffffff !important; border-color:#52525b !important; }
     [class*="grid-cols-2"] > button { background:linear-gradient(145deg,#fff8ed,#ead9c0) !important; border:2px solid rgba(183,28,28,.22); }
     [class*="grid-cols-2"] > button:hover { border-color:var(--bh-red); transform:translateY(-2px); }
     .bg-red-600, .bg-red-500 { background:var(--bh-red) !important; }
@@ -1261,7 +1261,7 @@
 
                         <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 space-y-2">
                           <label className="block text-xs font-black text-amber-500 uppercase">🎟️ Cupom de desconto</label>
-                          <div className="flex gap-2"><input value={couponCode} onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponValidation(null); setCouponDiscount(0); }} placeholder="Digite seu cupom" className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm" /><button type="button" onClick={validateCoupon} disabled={couponValidating || !couponCode.trim()} className="bg-amber-500 text-black px-3 rounded-xl text-xs font-black">{couponValidating ? '...' : 'Aplicar'}</button></div>
+                          <div className="flex gap-2"><input value={couponCode} onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponValidation(null); setCouponDiscount(0); }} placeholder="Digite seu cupom" className="coupon-input flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm" /><button type="button" onClick={validateCoupon} disabled={couponValidating || !couponCode.trim()} className="bg-amber-500 text-black px-3 rounded-xl text-xs font-black">{couponValidating ? '...' : 'Aplicar'}</button></div>
                           {couponValidation?.valid && <p className="text-[11px] text-green-400 font-bold">✅ Desconto aplicado: R$ {couponDiscount.toFixed(2)}</p>}
                           {couponValidation && !couponValidation.valid && <p className="text-[11px] text-red-400 font-bold">❌ Cupom inválido, expirado ou não disponível.</p>}
                         </div>
