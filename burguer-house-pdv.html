@@ -1215,7 +1215,7 @@
             })
         : uniqueClients.filter(c => {
             if (leadFilter === 'loyal') return c.ordersCount >= 2;
-            if (leadFilter === 'churned') return c.daysAgo >= 15;
+            if (leadFilter === 'churned') return c.daysAgo >= 30;
             return true;
           });
       const displayedClients = filteredClientsByType.filter(client => {
@@ -1768,7 +1768,7 @@
                         <div className="bg-zinc-100 rounded-xl p-2 text-center"><b className="block text-lg">{uniqueClients.length}</b><span className="text-[9px] text-zinc-500">Clientes</span></div>
                         <div className="bg-pink-50 rounded-xl p-2 text-center"><b className="block text-lg">{crmCustomers.filter(c => typeof c.birthday === 'string' && c.birthday.slice(0, 2) === String(new Date().getMonth() + 1).padStart(2, '0')).length}</b><span className="text-[9px] text-zinc-500">Aniversários</span></div>
                         <div className="bg-amber-50 rounded-xl p-2 text-center"><b className="block text-lg">{uniqueClients.filter(c => c.ordersCount >= 2).length}</b><span className="text-[9px] text-zinc-500">Fiéis</span></div>
-                        <div className="bg-red-50 rounded-xl p-2 text-center"><b className="block text-lg">{uniqueClients.filter(c => c.daysAgo >= 15).length}</b><span className="text-[9px] text-zinc-500">Sumidos</span></div>
+                        <div className="bg-red-50 rounded-xl p-2 text-center"><b className="block text-lg">{uniqueClients.filter(c => c.daysAgo >= 30).length}</b><span className="text-[9px] text-zinc-500">Sumidos</span></div>
                       </div>
                       <div className="flex gap-2">
                         <input type="search" value={clientSearchInput} onChange={e => { setClientSearchInput(e.target.value); setClientSearch(e.target.value); }} onKeyDown={e => { if (e.key === 'Enter') setClientSearch(clientSearchInput.trim()); }} placeholder="Buscar por nome ou telefone" className="flex-1 border rounded-xl px-3 py-3 text-sm" />
@@ -1792,7 +1792,7 @@
                       <div className="flex bg-zinc-100 p-1 rounded-2xl">
                         <button onClick={() => setLeadFilter('all')} className={`flex-1 py-2 rounded-xl text-xs font-bold ${leadFilter === 'all' ? 'bg-amber-500 text-black' : 'text-zinc-500'}`}>Todos ({uniqueClients.length})</button>
                         <button onClick={() => setLeadFilter('loyal')} className={`flex-1 py-2 rounded-xl text-xs font-bold ${leadFilter === 'loyal' ? 'bg-amber-500 text-black' : 'text-zinc-500'}`}>Fiéis (2+)</button>
-                        <button onClick={() => setLeadFilter('churned')} className={`flex-1 py-2 rounded-xl text-xs font-bold ${leadFilter === 'churned' ? 'bg-red-500 text-white' : 'text-zinc-500'}`}>Sumidos (&gt;15d)</button>
+                        <button onClick={() => setLeadFilter('churned')} className={`flex-1 py-2 rounded-xl text-xs font-bold ${leadFilter === 'churned' ? 'bg-red-500 text-white' : 'text-zinc-500'}`}>Sumidos (&gt;30d)</button>
                         <button onClick={() => setLeadFilter('birthday')} className={`flex-1 py-2 rounded-xl text-xs font-bold ${leadFilter === 'birthday' ? 'bg-pink-500 text-white' : 'text-zinc-500'}`}>🎂 Aniversários</button>
                         <button onClick={() => setLeadFilter('top')} className={`flex-1 py-2 rounded-xl text-xs font-bold ${leadFilter === 'top' ? 'bg-purple-500 text-white' : 'text-zinc-500'}`}>💰 Maiores gastos</button>
                       </div>
@@ -1834,7 +1834,7 @@
                               </div>
                               <div className="flex flex-col items-end">
                                 <span className="bg-amber-100 text-amber-900 font-black text-[10px] px-2.5 py-0.5 rounded-full mb-1">{client.ordersCount} {client.ordersCount === 1 ? 'pedido' : 'pedidos'}</span>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${client.daysAgo >= 15 ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-600'}`}>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${client.daysAgo >= 30 ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-600'}`}>
                                   {client.daysAgo === 0 ? 'Pediu hoje' : `Sumido há ${client.daysAgo}d`}
                                 </span>
                               </div>
