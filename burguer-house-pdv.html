@@ -1042,6 +1042,22 @@
         return null;
       };
 
+      // Inclui no CRM clientes que ainda não aparecem na lista de pedidos.
+      crmCustomers.forEach(customer => {
+        const normalized = customer.phoneNormalized || normalizePhone(customer.phone);
+        if (!normalized) return;
+        const alreadyListed = Object.keys(uniqueClientsMap).some(key => normalizePhone(key) === normalized);
+        if (!alreadyListed) {
+          uniqueClientsMap[normalized] = {
+            name: customer.name || '',
+            phone: customer.phone || normalized,
+            address: Array.isArray(customer.addresses) && customer.addresses.length ? customer.addresses[customer.addresses.length - 1].value : '',
+            ordersCount: Number(customer.totalOrders) || 0,
+            lastOrderAt: customer.lastOrderAt || 0
+          };
+        }
+      });
+
       const upsertCustomerFromOrder = async (order) => {
         const phone = normalizePhone(order.customerPhone);
         if (!phone) return;
