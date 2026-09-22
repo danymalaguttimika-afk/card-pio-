@@ -179,6 +179,7 @@
 
       const [leadFilter, setLeadFilter] = useState('all');
       const [clientSearch, setClientSearch] = useState('');
+      const [clientSearchInput, setClientSearchInput] = useState('');
       const [syncingCustomers, setSyncingCustomers] = useState(false);
       const [syncCustomersMessage, setSyncCustomersMessage] = useState('');
       const [editingClient, setEditingClient] = useState(null);
@@ -1720,8 +1721,8 @@
                       </div>
                       {syncCustomersMessage && <p className="text-xs text-zinc-500">{syncCustomersMessage}</p>}
                       <div className="flex gap-2">
-                        <input type="search" value={clientSearch} onChange={e => setClientSearch(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') e.preventDefault(); }} placeholder="Buscar por nome ou telefone" className="flex-1 border rounded-xl px-3 py-3 text-sm" />
-                        <button type="button" onClick={() => setClientSearch(clientSearch.trim())} className="bg-zinc-900 text-white px-4 rounded-xl font-black">🔍 Buscar</button>
+                        <input type="search" value={clientSearchInput} onChange={e => setClientSearchInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') setClientSearch(clientSearchInput.trim()); }} placeholder="Buscar por nome ou telefone" className="flex-1 border rounded-xl px-3 py-3 text-sm" />
+                        <button type="button" onClick={() => setClientSearch(clientSearchInput.trim())} className="relative z-10 bg-zinc-900 text-white px-4 rounded-xl font-black">🔍 Buscar</button>
                       </div>
                       <h3 className="font-black text-base flex items-center gap-2">📢 Campanhas de WhatsApp</h3>
                       <p className="text-xs text-zinc-500 leading-tight">Escreva sua mensagem abaixo. A tag <code className="bg-zinc-100 text-amber-600 px-1 py-0.5 rounded font-mono font-bold">[Nome]</code> será substituída automaticamente pelo nome de cada cliente ao clicar em chamar.</p>
