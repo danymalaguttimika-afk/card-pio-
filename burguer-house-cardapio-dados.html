@@ -628,7 +628,7 @@
         if (reference.trim()) addressText += ` (Ref: ${reference})`;
 
         try {
-          const { db, auth, onAuthStateChanged, collection, addDoc, doc, updateDoc } = window.firebaseAPI;
+          const { db, auth, onAuthStateChanged, collection, addDoc } = window.firebaseAPI;
           const customerUid = await new Promise((resolve, reject) => {
             if (auth.currentUser) return resolve(auth.currentUser.uid);
             let unsubscribe;
@@ -645,22 +645,19 @@
           });
           const docRef = await addDoc(collection(db, 'orders'), {
             customerUid, customerName, customerPhone, customerAddress: addressText, 
-            items: cart, subtotal: itemsTotal, discountAmount: Number(couponResult?.discountAmount || couponDiscount || 0), couponCode: couponCode.trim().toUpperCase() || null, couponId: couponResult?.couponId || null, deliveryFee: deliveryFee, total: Math.max(0, itemsTotal - Number(couponResult?.discountAmount || couponDiscount || 0)) + deliveryFee, 
+            items: cart, subtotal: itemsTotal, discountAmount: 0, couponCode: couponCode.trim().toUpperCase() || null, couponId: couponResult?.couponId || null, deliveryFee: deliveryFee, total: itemsTotal + deliveryFee, 
             paymentMethod: paymentMethod, phone: WHATSAPP_NUMBER, status: 'pendente', source: 'whatsapp', couponStatus: couponResult?.valid ? 'pending' : null, createdAt: Date.now()
           });
 
           if (couponResult?.valid) {
             try {
-              const redemptionResponse = await fetch('https://api.vizzitech.com.br/coupon/redeem', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: couponCode.trim().toUpperCase(), couponId: couponResult.couponId, orderId: docRef.id, customerPhone, subtotal: itemsTotal }) });
+              const redemptionResponse = await fetch('https://api.vizzitech.com.br/coupon/redeem', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: couponCode.trim().toUpperCase(), couponId: couponResult.couponId, orderId: docRef.id, customerPhone, subtotal: itemsTotal, deliveryFee }) });
               const redemption = await redemptionResponse.json();
               if (redemption.redeemed) {
-                await updateDoc(doc(db, 'orders', docRef.id), { couponStatus: 'redeemed' });
               } else {
-                await updateDoc(doc(db, 'orders', docRef.id), { couponCode: null, couponId: null, couponStatus: 'rejected', discountAmount: 0, total: itemsTotal + deliveryFee });
                 alert('O cupom não pôde ser reservado e não foi aplicado ao pedido. O pedido será enviado sem desconto.');
               }
             } catch (redemptionError) {
-              await updateDoc(doc(db, 'orders', docRef.id), { couponCode: null, couponId: null, couponStatus: 'rejected', discountAmount: 0, total: itemsTotal + deliveryFee });
               alert('Não foi possível confirmar o cupom. O pedido será enviado sem desconto.');
             }
           }
