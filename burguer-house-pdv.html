@@ -687,13 +687,29 @@
       };
 
       const addProductToManualOrder = (product) => {
-        if (product.paused) return;
+        if (!product || product.paused) return;
+        const chosenAddons = addons.filter(a => selectedAddons[a.id]);
+        const addonsTotal = chosenAddons.reduce((acc, a) => acc + parseFloat(a.price || 0), 0);
+        const cartItem = {
+          id: `manual_${product.id}_${chosenAddons.map(a => a.id).join('_')}_${productNote.trim()}`,
+          productId: product.id,
+          name: product.name,
+          basePrice: parseFloat(product.price),
+          price: parseFloat(product.price) + addonsTotal,
+          addons: chosenAddons,
+          note: productNote.trim(),
+          quantity: 1
+        };
         setCart(prev => {
-          const existing = prev.find(item => item.id === `manual_${product.id}`);
-          if (existing) return prev.map(item => item.id === existing.id ? { ...item, quantity: item.quantity + 1 } : item);
-          return [...prev, { id: `manual_${product.id}`, productId: product.id, name: product.name,
-            basePrice: parseFloat(product.price), price: parseFloat(product.price), addons: [], note: '', quantity: 1 }];
+          const existing = prev.find(item => item.id === cartItem.id);
+          if (existing) return prev.map(item => item.id === cartItem.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item);
+          return [...prev, cartItem];
         });
+        setManualSelectedProduct(null);
+        setSelectedAddons({});
+        setProductNote('');
       };
 
       const addManualProductWithAddons = (product) => {
@@ -1442,7 +1458,7 @@
                       {manualSelectedProduct && <div className="bg-zinc-900 text-white rounded-xl p-3 mb-4">
                         <div className="flex justify-between items-center mb-2"><b className="text-sm">{manualSelectedProduct.name}</b><button onClick={() => setManualSelectedProduct(null)} className="text-red-300 font-bold">✕</button></div>
                         {addons.length > 0 ? <div className="space-y-2 mb-3">{addons.map(addon => <label key={addon.id} className="flex items-center justify-between bg-zinc-800 p-2 rounded-lg text-xs"><span className="flex items-center gap-2"><input type="checkbox" checked={!!selectedAddons[addon.id]} onChange={e => setSelectedAddons({...selectedAddons, [addon.id]: e.target.checked})} />{addon.name}</span><b>+ R$ {addon.price.toFixed(2)}</b></label>)}</div> : <p className="text-xs text-zinc-300 mb-3">Este produto não possui adicionais cadastrados.</p>}
-                        <button type="button" onClick={() => addManualProductWithAddons(manualSelectedProduct)} className="relative z-10 w-full bg-amber-500 text-black py-3 rounded-xl font-black text-sm">Adicionar produto</button>
+                        <button type="button" onClick={() => addProductToManualOrder(manualSelectedProduct)} className="relative z-10 w-full bg-amber-500 text-black py-3 rounded-xl font-black text-sm">Adicionar produto</button>
                       </div>}
                       {cart.length > 0 && <div className="bg-zinc-100 rounded-xl p-3 mb-4 space-y-2">{cart.map(item => <div key={item.id} className="flex justify-between text-sm"><span><b>{item.quantity}x</b> {item.name}</span><span className="font-bold">R$ {(item.price * item.quantity).toFixed(2)}</span></div>)}<div className="border-t border-zinc-300 pt-2 flex justify-between font-black">Total <span>R$ {(itemsTotal + (manualOrderType === 'Entrega' ? deliveryFee : 0)).toFixed(2)}</span></div></div>}
                       <button onClick={handleCreateManualOrder} className="w-full bg-amber-500 text-black py-4 rounded-2xl font-black">Salvar pedido no PDV</button>
