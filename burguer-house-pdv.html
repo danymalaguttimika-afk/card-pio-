@@ -173,6 +173,7 @@
       const [openingChangeInput, setOpeningChangeInput] = useState("0.00");
       const [withdrawalAmount, setWithdrawalAmount] = useState("");
       const [closingCashInput, setClosingCashInput] = useState("");
+      const [closingCashNote, setClosingCashNote] = useState("");
       const [withdrawalReason, setWithdrawalReason] = useState("");
       const [newAddonName, setNewAddonName] = useState("");
       const [newAddonPrice, setNewAddonPrice] = useState("");
@@ -506,7 +507,7 @@
         try {
           const { db, doc, updateDoc } = window.firebaseAPI;
           await updateDoc(doc(db, 'cash_registers', currentCash.id), {
-            status: 'fechado', closedAt: Date.now(), totalSales, pixSales, cardSales, cashSales, totalWithdrawals, countedCash, cashDifference: Number((countedCash - expectedCashInDrawer).toFixed(2))
+            status: 'fechado', closedAt: Date.now(), totalSales, pixSales, cardSales, cashSales, totalWithdrawals, countedCash, cashDifference: Number((countedCash - expectedCashInDrawer).toFixed(2)), closingNote: closingCashNote.trim() || null
           });
           alert("Caixa fechado com sucesso!");
         } catch (error) { alert("Erro ao fechar caixa."); }
@@ -2043,7 +2044,7 @@
                               return <div key={c.id} className="bg-zinc-50 p-3 rounded-xl border border-zinc-200 space-y-2 text-xs">
                                 <div className="flex justify-between items-center"><div><p className="font-bold">{new Date(c.openedAt).toLocaleDateString('pt-BR')}</p><span className="text-zinc-500">Fechado: {c.closedAt ? new Date(c.closedAt).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}) : '—'}</span></div><span className="font-black text-amber-600">R$ {(c.totalSales || 0).toFixed(2)}</span></div>
                                 <div className="grid grid-cols-3 gap-1 text-[10px] text-zinc-500"><span>Pix<br/><b className="text-zinc-800">R$ {(c.pixSales || 0).toFixed(2)}</b></span><span>Cartão<br/><b className="text-zinc-800">R$ {(c.cardSales || 0).toFixed(2)}</b></span><span>Dinheiro<br/><b className="text-zinc-800">R$ {(c.cashSales || 0).toFixed(2)}</b></span></div>
-                                {c.countedCash !== undefined && <div className={`flex justify-between font-bold ${diff === 0 ? 'text-green-700' : diff < 0 ? 'text-red-700' : 'text-blue-700'}`}><span>Conferência: R$ {Number(c.countedCash).toFixed(2)}</span><span>{diff === 0 ? 'Sem diferença' : `${diff > 0 ? 'Sobra' : 'Falta'} R$ ${Math.abs(diff).toFixed(2)}`}</span></div>}
+                                {c.countedCash !== undefined && <><div className={`flex justify-between font-bold ${diff === 0 ? 'text-green-700' : diff < 0 ? 'text-red-700' : 'text-blue-700'}`}><span>Conferência: R$ {Number(c.countedCash).toFixed(2)}</span><span>{diff === 0 ? 'Sem diferença' : `${diff > 0 ? 'Sobra' : 'Falta'} R$ ${Math.abs(diff).toFixed(2)}`}</span></div>{c.closingNote && <p className="text-[10px] text-zinc-500">Obs.: {c.closingNote}</p>}</>}
                               </div>;
                             })}
                             {closedCashRegisters.length === 0 && <p className="text-xs text-zinc-400 text-center py-2">Nenhum histórico anterior.</p>}
@@ -2167,7 +2168,8 @@
                         <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 space-y-2">
                           <div className="flex justify-between text-xs"><span className="font-bold text-amber-900">Conferência da gaveta</span><span className="text-amber-700">Esperado: R$ {expectedCashInDrawer.toFixed(2)}</span></div>
                           <input type="number" step="0.01" min="0" value={closingCashInput} onChange={e => setClosingCashInput(e.target.value)} placeholder="Dinheiro contado na gaveta (R$)" className="w-full bg-white border border-amber-300 rounded-xl px-3 py-3 text-sm font-black" />
-                          <p className="text-[10px] text-amber-700">A diferença será registrada no fechamento para conferência.</p>
+                          <input type="text" value={closingCashNote} onChange={e => setClosingCashNote(e.target.value)} placeholder="Observação (opcional): motivo da diferença" className="w-full bg-white border border-amber-300 rounded-xl px-3 py-2 text-xs" />
+                          <p className="text-[10px] text-amber-700">A diferença e a observação serão registradas no fechamento para conferência.</p>
                         </div>
                         <button onClick={handleCloseCash} className="w-full bg-red-600 text-white font-black py-4 rounded-2xl shadow-md text-sm mt-4">
                           🔒 Fechar Caixa do Dia
