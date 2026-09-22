@@ -645,7 +645,7 @@
           });
           const docRef = await addDoc(collection(db, 'orders'), {
             customerUid, customerName, customerPhone, customerAddress: addressText, 
-            items: cart, subtotal: itemsTotal, discountAmount: couponDiscount, couponCode: couponCode.trim().toUpperCase() || null, couponId: couponResult?.couponId || null, deliveryFee: deliveryFee, total: cartTotal, 
+            items: cart, subtotal: itemsTotal, discountAmount: Number(couponResult?.discountAmount || couponDiscount || 0), couponCode: couponCode.trim().toUpperCase() || null, couponId: couponResult?.couponId || null, deliveryFee: deliveryFee, total: Math.max(0, itemsTotal - Number(couponResult?.discountAmount || couponDiscount || 0)) + deliveryFee, 
             paymentMethod: paymentMethod, phone: WHATSAPP_NUMBER, status: 'pendente', source: 'whatsapp', createdAt: Date.now()
           });
           
