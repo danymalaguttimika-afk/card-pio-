@@ -1185,7 +1185,7 @@
         const phoneText = String(client.phone || client.phoneNormalized || '');
         return String(client.name || '').toLowerCase().includes(query)
           || phoneText.toLowerCase().includes(query)
-          || phoneText.replace(/\D/g, '').includes(digitsQuery);
+          || (digitsQuery.length > 0 && phoneText.replace(/\D/g, '').includes(digitsQuery));
       });
 
       const getCustomerPreferences = (client) => {
