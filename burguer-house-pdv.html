@@ -486,6 +486,13 @@
         } catch (error) {}
       };
 
+      const handlePrintCashReport = () => {
+        if (!currentCash) return;
+        const withdrawalsHtml = (currentCash.withdrawals || []).filter(w => !w.voided).map(w => `<li>${w.reason}: R$ ${Number(w.amount || 0).toFixed(2)}</li>`).join('') || '<li>Nenhuma</li>';
+        const report = `<html><head><title>Fechamento de Caixa</title><style>body{font-family:Arial;padding:24px;max-width:560px;margin:auto}h1{font-size:20px;border-bottom:2px solid #111;padding-bottom:8px}.row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #ddd}.total{font-size:18px;font-weight:bold}.small{color:#666;font-size:12px}ul{padding-left:20px}</style></head><body><h1>Burguer House — Caixa</h1><p class="small">Abertura: ${new Date(currentCash.openedAt).toLocaleString('pt-BR')}<br>Responsável: ${currentCash.openedBy || 'admin'}</p><div class="row"><span>Faturamento total</span><b>R$ ${sessionTotal.toFixed(2)}</b></div><div class="row"><span>Pix</span><b>R$ ${sessionPix.toFixed(2)}</b></div><div class="row"><span>Cartão</span><b>R$ ${sessionCard.toFixed(2)}</b></div><div class="row"><span>Dinheiro</span><b>R$ ${sessionCash.toFixed(2)}</b></div><div class="row"><span>Retiradas</span><b>R$ ${totalWithdrawals.toFixed(2)}</b></div><div class="row total"><span>Esperado na gaveta</span><b>R$ ${expectedCashInDrawer.toFixed(2)}</b></div><h3>Retiradas</h3><ul>${withdrawalsHtml}</ul><p class="small">Relatório emitido em ${new Date().toLocaleString('pt-BR')}</p></body></html>`;
+        const popup = window.open('', '_blank'); if (!popup) return alert('Permita pop-ups para imprimir o relatório.'); popup.document.write(report); popup.document.close(); popup.focus(); popup.print();
+      };
+
       const handleCloseCash = async () => {
         if (!currentCash) return;
         if (!window.confirm("Deseja realmente fechar o caixa do dia?")) return;
@@ -2171,7 +2178,8 @@
                           <input type="text" value={closingCashNote} onChange={e => setClosingCashNote(e.target.value)} placeholder="Observação (opcional): motivo da diferença" className="w-full bg-white border border-amber-300 rounded-xl px-3 py-2 text-xs" />
                           <p className="text-[10px] text-amber-700">A diferença e a observação serão registradas no fechamento para conferência.</p>
                         </div>
-                        <button onClick={handleCloseCash} className="w-full bg-red-600 text-white font-black py-4 rounded-2xl shadow-md text-sm mt-4">
+                        <button type="button" onClick={handlePrintCashReport} className="w-full bg-zinc-900 text-white font-black py-3 rounded-2xl text-sm mt-4">🖨️ Imprimir relatório da sessão</button>
+                        <button onClick={handleCloseCash} className="w-full bg-red-600 text-white font-black py-4 rounded-2xl shadow-md text-sm mt-2">
                           🔒 Fechar Caixa do Dia
                         </button>
                       </div>
