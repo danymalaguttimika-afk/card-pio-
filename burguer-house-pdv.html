@@ -1190,6 +1190,16 @@
         return map.size;
       };
 
+      const getCustomerTags = (client) => {
+        const tags = Array.isArray(client.tags) ? [...client.tags] : [];
+        if ((Number(client.ordersCount) || 0) >= 2 && !tags.includes('Fiel')) tags.push('Fiel');
+        if ((Number(client.daysAgo) || 0) >= 30 && !tags.includes('Sumido')) tags.push('Sumido');
+        if (!client.ordersCount && !tags.includes('Novo')) tags.push('Novo');
+        const monthDay = `${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+        if (client.birthday === monthDay && !tags.includes('Aniversário')) tags.push('Aniversário');
+        return tags.slice(0, 5);
+      };
+
       const now = Date.now();
       const uniqueClients = Object.values(uniqueClientsMap).map(c => {
         const daysAgo = c.lastOrderAt ? Math.floor((now - c.lastOrderAt) / (1000 * 60 * 60 * 24)) : 0;
@@ -1834,6 +1844,7 @@
                               <div>
                                 <h4 className="font-black text-base text-zinc-900">{client.name}</h4>
                                 <p className="text-xs text-zinc-500">📱 {client.phone}</p>
+                                <div className="flex flex-wrap gap-1 mt-1">{getCustomerTags(client).map(tag => <span key={tag} className="bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full text-[9px] font-bold">{tag}</span>)}</div>
                               </div>
                               <div className="flex flex-col items-end">
                                 <span className="bg-amber-100 text-amber-900 font-black text-[10px] px-2.5 py-0.5 rounded-full mb-1">{client.ordersCount} {client.ordersCount === 1 ? 'pedido' : 'pedidos'}</span>
