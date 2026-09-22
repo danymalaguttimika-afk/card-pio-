@@ -437,6 +437,11 @@
         window.open(url, '_blank');
       };
 
+      const updateCampaignStatus = (id, status) => {
+        const next = campaignHistory.map(item => item.id === id ? { ...item, status, updatedAt: Date.now() } : item);
+        setCampaignHistory(next); localStorage.setItem('burguer_campaign_history', JSON.stringify(next));
+      };
+
       const handleOpenCash = async (e) => {
         e.preventDefault();
         const change = parseFloat(openingChangeInput);
@@ -1843,7 +1848,7 @@
                     <div className="bg-white rounded-3xl p-5 shadow-sm border border-zinc-200 space-y-2">
                       <div className="flex justify-between items-center"><h3 className="font-black text-base">📣 Histórico de campanhas</h3><span className="text-xs text-zinc-500">{campaignHistory.length} registradas</span></div>
                       <p className="text-[10px] text-zinc-500">Registra quando uma mensagem foi preparada para envio. O envio continua dependendo da confirmação do operador no WhatsApp.</p>
-                      {campaignHistory.slice(0, 5).map(item => <div key={item.id} className="flex justify-between text-xs border-t border-zinc-100 pt-2"><span><b>{item.customerName}</b> · {item.type}</span><span className="text-zinc-400">{new Date(item.createdAt).toLocaleDateString('pt-BR')}</span></div>)}
+                      {campaignHistory.slice(0, 5).map(item => <div key={item.id} className="border-t border-zinc-100 pt-2 space-y-1"><div className="flex justify-between text-xs"><span><b>{item.customerName}</b> · {item.type}</span><span className="text-zinc-400">{new Date(item.createdAt).toLocaleDateString('pt-BR')}</span></div><div className="flex items-center justify-between gap-2"><span className="text-[10px] font-bold text-blue-700">{item.status}</span><div className="flex gap-1">{item.status === 'mensagem preparada' && <button type="button" onClick={() => updateCampaignStatus(item.id, 'enviada')} className="text-[9px] bg-zinc-100 px-2 py-1 rounded-lg font-bold">Marcar enviada</button>}{item.status === 'enviada' && <button type="button" onClick={() => updateCampaignStatus(item.id, 'venda gerada')} className="text-[9px] bg-green-100 text-green-700 px-2 py-1 rounded-lg font-bold">Venda gerada</button>}</div></div></div>)}
                       {campaignHistory.length === 0 && <p className="text-xs text-zinc-400">Nenhuma campanha preparada ainda.</p>}
                     </div>
 
