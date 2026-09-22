@@ -184,6 +184,7 @@
       const [birthdayInput, setBirthdayInput] = useState('');
       const [birthdayConsentInput, setBirthdayConsentInput] = useState(false);
       const [notesInput, setNotesInput] = useState('');
+      const [nameInput, setNameInput] = useState('');
       const [crmCustomers, setCrmCustomers] = useState([]);
       const [promoTemplate, setPromoTemplate] = useState("Olá [Nome]! Tudo bem? Passando para avisar que hoje o cardápio da Burguer House está recheado de delícias. Que tal pedir seu lanche favorito agora? 🍔🔥");
       const [analysisStartDate, setAnalysisStartDate] = useState("");
@@ -1734,6 +1735,7 @@
 
                             <button type="button" onClick={async () => {
                               setEditingClient(client);
+                              setNameInput(client.name || '');
                               setBirthdayInput('');
                               setBirthdayConsentInput(false);
                               setNotesInput('');
@@ -1743,6 +1745,7 @@
                                 const snap = await getDoc(doc(db, 'customers', phone));
                                 if (snap.exists()) {
                                   const data = snap.data();
+                                  setNameInput(data.name || client.name || '');
                                   setBirthdayInput(data.birthday || '');
                                   setBirthdayConsentInput(data.birthdayConsent === true);
                                   setNotesInput(data.notes || '');
@@ -1774,6 +1777,10 @@
                         <button type="button" onClick={() => setEditingClient(null)} className="text-red-500 font-black text-xl">✕</button>
                       </div>
                       <div>
+                        <label className="text-xs font-black uppercase">Nome do cliente</label>
+                        <input type="text" value={nameInput} onChange={e => setNameInput(e.target.value)} className="w-full border rounded-xl px-3 py-3 mt-1" placeholder="Nome completo" />
+                      </div>
+                      <div>
                         <label className="text-xs font-black uppercase">Aniversário</label>
                         <div className="grid grid-cols-2 gap-2 mt-1">
                           <select value={birthdayInput.length >= 2 ? birthdayInput.slice(0, 2) : ''} onChange={e => { const day = birthdayInput.length >= 5 ? birthdayInput.slice(3, 5) : ''; setBirthdayInput(e.target.value ? `${e.target.value}-${day}` : ''); }} className="w-full border rounded-xl px-3 py-3">
@@ -1798,7 +1805,7 @@
                         if (birthdayInput && (month < 1 || month > 12 || day < 1 || day > 31)) return alert('Data de aniversário inválida.');
                         try {
                           const { db, doc, setDoc } = window.firebaseAPI;
-                          await setDoc(doc(db, 'customers', phone), { birthday: birthdayInput || null, birthdayConsent: birthdayConsentInput, notes: notesInput.trim(), updatedAt: new Date() }, { merge: true });
+                          await setDoc(doc(db, 'customers', phone), { name: nameInput.trim(), birthday: birthdayInput || null, birthdayConsent: birthdayConsentInput, notes: notesInput.trim(), updatedAt: new Date() }, { merge: true });
                           setEditingClient(null);
                           alert('✅ Cadastro atualizado.');
                         } catch (err) { console.error(err); alert('❌ Não foi possível atualizar o cliente.'); }
