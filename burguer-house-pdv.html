@@ -679,7 +679,11 @@
             status: 'pendente', source: 'manual', orderChannel: 'telefone', createdAt: Date.now()
           };
           const docRef = await addDoc(collection(db, 'orders'), manualOrder);
-          await upsertCustomerFromOrder(manualOrder);
+          try {
+            await upsertCustomerFromOrder(manualOrder);
+          } catch (crmError) {
+            console.error('Pedido salvo, mas CRM não foi atualizado:', crmError);
+          }
           setCart([]); setCustomerName(''); setCustomerPhone(''); setStreet(''); setNumber('');
           setNeighborhood(''); setReference(''); setManualPaymentMethod('Pix');
           setManualOrderType('Entrega'); setManualOrderOpen(false); setPdvTab('orders');
