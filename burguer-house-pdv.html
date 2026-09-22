@@ -843,9 +843,11 @@
       };
 
       const handleUpdateOrderStatus = async (orderId, newStatus) => {
-        const { db, doc, updateDoc } = window.firebaseAPI;
+        const { db, auth, doc, updateDoc } = window.firebaseAPI;
         try {
-          await updateDoc(doc(db, 'orders', orderId), { status: newStatus, updatedAt: Date.now() });
+          const currentOrder = orders.find(o => o.id === orderId);
+          const statusHistory = [...(currentOrder?.statusHistory || []), { from: currentOrder?.status || null, to: newStatus, at: Date.now(), by: auth?.currentUser?.email || 'admin' }];
+          await updateDoc(doc(db, 'orders', orderId), { status: newStatus, updatedAt: Date.now(), statusHistory });
         } catch (error) {
           console.error(error);
           alert(`Não foi possível atualizar o pedido (${error.code || 'permissão/conexão'}).`);
