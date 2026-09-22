@@ -1159,12 +1159,13 @@
               return typeof c.birthday === 'string' && c.birthday.slice(0, 2) === currentMonth;
             })
             .map(c => {
-              const base = uniqueClients.find(item => normalizePhone(item.phone) === (c.phoneNormalized || normalizePhone(c.phone)));
+              const crmPhone = c.phoneNormalized || normalizePhone(c.phone) || c.id;
+              const base = uniqueClients.find(item => normalizePhone(item.phone) === crmPhone);
               return {
                 ...base,
                 ...c,
                 name: c.name || base?.name || 'Cliente sem nome',
-                phone: c.phone || base?.phone || c.phoneNormalized || '',
+                phone: c.phone || base?.phone || crmPhone || '',
                 ordersCount: Number(c.totalOrders ?? base?.ordersCount ?? 0),
                 daysAgo: c.lastOrderAt ? Math.floor((now - (c.lastOrderAt.toDate ? c.lastOrderAt.toDate().getTime() : c.lastOrderAt)) / (1000 * 60 * 60 * 24)) : (base?.daysAgo || 0)
               };
