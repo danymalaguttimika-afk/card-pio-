@@ -1723,6 +1723,12 @@
                         </button>
                       </div>
                       {syncCustomersMessage && <p className="text-xs text-zinc-500">{syncCustomersMessage}</p>}
+                      <div className="grid grid-cols-4 gap-2">
+                        <div className="bg-zinc-100 rounded-xl p-2 text-center"><b className="block text-lg">{uniqueClients.length}</b><span className="text-[9px] text-zinc-500">Clientes</span></div>
+                        <div className="bg-pink-50 rounded-xl p-2 text-center"><b className="block text-lg">{crmCustomers.filter(c => typeof c.birthday === 'string' && c.birthday.slice(0, 2) === String(new Date().getMonth() + 1).padStart(2, '0')).length}</b><span className="text-[9px] text-zinc-500">Aniversários</span></div>
+                        <div className="bg-amber-50 rounded-xl p-2 text-center"><b className="block text-lg">{uniqueClients.filter(c => c.ordersCount >= 2).length}</b><span className="text-[9px] text-zinc-500">Fiéis</span></div>
+                        <div className="bg-red-50 rounded-xl p-2 text-center"><b className="block text-lg">{uniqueClients.filter(c => c.daysAgo >= 15).length}</b><span className="text-[9px] text-zinc-500">Sumidos</span></div>
+                      </div>
                       <div className="flex gap-2">
                         <input type="search" value={clientSearchInput} onChange={e => { setClientSearchInput(e.target.value); setClientSearch(e.target.value); }} onKeyDown={e => { if (e.key === 'Enter') setClientSearch(clientSearchInput.trim()); }} placeholder="Buscar por nome ou telefone" className="flex-1 border rounded-xl px-3 py-3 text-sm" />
                         <button type="button" onClick={() => setClientSearch(clientSearchInput.trim())} className="relative z-10 bg-zinc-900 text-white px-4 rounded-xl font-black">🔍 Buscar</button>
