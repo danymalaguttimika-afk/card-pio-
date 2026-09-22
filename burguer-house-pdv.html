@@ -185,6 +185,7 @@
       const [birthdayConsentInput, setBirthdayConsentInput] = useState(false);
       const [notesInput, setNotesInput] = useState('');
       const [nameInput, setNameInput] = useState('');
+      const [historyClient, setHistoryClient] = useState(null);
       const [crmCustomers, setCrmCustomers] = useState([]);
       const [promoTemplate, setPromoTemplate] = useState("Olá [Nome]! Tudo bem? Passando para avisar que hoje o cardápio da Burguer House está recheado de delícias. Que tal pedir seu lanche favorito agora? 🍔🔥");
       const [analysisStartDate, setAnalysisStartDate] = useState("");
@@ -1734,6 +1735,9 @@
                               </div>
                             </div>
 
+                            <button type="button" onClick={() => setHistoryClient(client)} className="w-full bg-blue-900 text-white py-3 rounded-2xl text-xs font-black shadow-sm mt-1">
+                              📋 Ver histórico de pedidos
+                            </button>
                             <button type="button" onClick={async () => {
                               setEditingClient(client);
                               setNameInput(client.name || '');
@@ -1766,6 +1770,22 @@
                         );
                       })}
                       {displayedClients.length === 0 && <div className="text-center text-zinc-400 py-10 text-xs">Nenhum cliente encontrado neste filtro.</div>}
+                    </div>
+                  </div>
+                )}
+
+                {historyClient && (
+                  <div className="fixed inset-0 z-[80] bg-black/70 flex items-end justify-center">
+                    <div className="bg-white w-full max-w-md max-h-[88vh] overflow-y-auto rounded-t-[2rem] p-5 text-zinc-900 space-y-4">
+                      <div className="flex justify-between items-center"><div><h3 className="font-black text-xl">Histórico de pedidos</h3><p className="text-xs text-zinc-500">{historyClient.name || 'Cliente'} · {historyClient.phone}</p></div><button type="button" onClick={() => setHistoryClient(null)} className="text-red-500 font-black text-xl">✕</button></div>
+                      {orders.filter(order => normalizePhone(order.customerPhone) === (historyClient.phoneNormalized || normalizePhone(historyClient.phone))).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0)).map(order => (
+                        <div key={order.id} className="border border-zinc-200 rounded-2xl p-3 space-y-2">
+                          <div className="flex justify-between text-xs"><b>#{order.id.substring(0, 5).toUpperCase()}</b><span>{parseOrderDate(order.createdAt)?.toLocaleDateString('pt-BR') || '-'}</span></div>
+                          <div className="text-sm">{(order.items || []).map((item, idx) => <div key={idx}><b>{item.quantity}x</b> {item.name}{item.addons?.length ? <span className="block text-xs text-zinc-500 pl-4">+ {item.addons.map(a => `${a.name} (R$ ${Number(a.price || 0).toFixed(2)})`).join(', ')}</span> : null}</div>)}</div>
+                          <div className="flex justify-between border-t pt-2 text-sm font-black"><span>{order.status || 'pendente'}</span><span>R$ {Number(order.total || 0).toFixed(2)}</span></div>
+                        </div>
+                      ))}
+                      {orders.filter(order => normalizePhone(order.customerPhone) === (historyClient.phoneNormalized || normalizePhone(historyClient.phone))).length === 0 && <p className="text-center text-zinc-500 py-6 text-sm">Nenhum pedido encontrado.</p>}
                     </div>
                   </div>
                 )}
