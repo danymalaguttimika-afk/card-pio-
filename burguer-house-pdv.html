@@ -1177,6 +1177,21 @@
             return true;
           });
 
+      const getCustomerPreferences = (client) => {
+        const phone = client.phoneNormalized || normalizePhone(client.phone);
+        const customerOrders = orders.filter(order => normalizePhone(order.customerPhone) === phone);
+        const products = {};
+        const addons = {};
+        customerOrders.forEach(order => (order.items || []).forEach(item => {
+          products[item.name] = (products[item.name] || 0) + (Number(item.quantity) || 0);
+          (item.addons || []).forEach(addon => { addons[addon.name] = (addons[addon.name] || 0) + (Number(item.quantity) || 0); });
+        }));
+        return {
+          products: Object.entries(products).sort((a, b) => b[1] - a[1]).slice(0, 3),
+          addons: Object.entries(addons).sort((a, b) => b[1] - a[1]).slice(0, 3)
+        };
+      };
+
       return (
         <div className="min-h-screen relative pb-20 w-full overflow-x-hidden font-sans">
           
@@ -1784,6 +1799,7 @@
                         <div className="bg-zinc-100 rounded-xl p-2 text-center"><b className="block text-sm">R$ {Number(historyClient.avgTicket || 0).toFixed(2)}</b><span className="text-[10px] text-zinc-500">Ticket médio</span></div>
                       </div>
                       {historyClient.addresses?.length > 0 && <div className="bg-zinc-50 rounded-xl p-3 text-xs"><b>📍 Endereço mais recente</b><p className="text-zinc-600 mt-1">{historyClient.addresses[historyClient.addresses.length - 1].value}</p></div>}
+                      {(() => { const prefs = getCustomerPreferences(historyClient); return <div className="grid grid-cols-2 gap-2"><div className="bg-amber-50 rounded-xl p-3 text-xs"><b>🍔 Mais pedidos</b>{prefs.products.length ? prefs.products.map(([name, qty]) => <p key={name} className="mt-1">{qty}x {name}</p>) : <p className="text-zinc-500 mt-1">Sem dados</p>}</div><div className="bg-amber-50 rounded-xl p-3 text-xs"><b>➕ Extras favoritos</b>{prefs.addons.length ? prefs.addons.map(([name, qty]) => <p key={name} className="mt-1">{qty}x {name}</p>) : <p className="text-zinc-500 mt-1">Sem dados</p>}</div></div>; })()}
                       <h4 className="font-black text-sm">Pedidos anteriores</h4>
                       {orders.filter(order => normalizePhone(order.customerPhone) === (historyClient.phoneNormalized || normalizePhone(historyClient.phone))).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0)).map(order => (
                         <div key={order.id} className="border border-zinc-200 rounded-2xl p-3 space-y-2">
