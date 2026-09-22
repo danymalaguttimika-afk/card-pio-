@@ -239,7 +239,7 @@
           if (unsubCustomers) { unsubCustomers(); unsubCustomers = null; }
           if (unsubCoupons) { unsubCoupons(); unsubCoupons = null; }
           if (ordersPoll) { clearInterval(ordersPoll); ordersPoll = null; }
-          if (!user) { setOrders([]); setCashRegisters([]); setCurrentCash(null); setCrmCustomers([]); setCrmCoupons([]); return; }
+          if (!user) { setOrders([]); setCashRegisters([]); setCurrentCash(null); setCrmCustomers([]); setCrmCoupons([]); setUserRole(null); setLoginOpen(true); return; }
           unsubCustomers = onSnapshot(collection(db, 'customers'), (snap) => { setCrmCustomers(snap.docs.map(d => ({ id: d.id, ...d.data() }))); }, (err) => console.error('Erro ao atualizar CRM:', err));
           unsubCoupons = onSnapshot(collection(db, 'coupons'), (snap) => { const list = snap.docs.map(d => ({ id: d.id, ...d.data() })); list.sort((a, b) => (b.createdAt?.toMillis?.() || b.createdAt || 0) - (a.createdAt?.toMillis?.() || a.createdAt || 0)); setCrmCoupons(list); }, (err) => console.error('Erro ao atualizar cupons:', err));
           isInitialOrdersLoad = true;
