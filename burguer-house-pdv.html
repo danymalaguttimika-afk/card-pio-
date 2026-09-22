@@ -159,6 +159,7 @@
       const [dispatchingOrder, setDispatchingOrder] = useState(null);
       const [manualOrderOpen, setManualOrderOpen] = useState(false);
       const [giftOrder, setGiftOrder] = useState(null);
+      const [costProduct, setCostProduct] = useState(null);
       const [manualPaymentMethod, setManualPaymentMethod] = useState('Pix');
       const [manualOrderType, setManualOrderType] = useState('Entrega');
       
@@ -861,6 +862,13 @@
           console.error(error);
           alert(`Não foi possível atualizar o pedido (${error.code || 'permissão/conexão'}).`);
         }
+      };
+
+      const handleSaveProductCost = async (e) => {
+        e.preventDefault();
+        const cost = parseFloat(e.target.cost.value);
+        if (!costProduct || isNaN(cost) || cost < 0) return;
+        try { const { db, doc, updateDoc } = window.firebaseAPI; await updateDoc(doc(db, 'products', costProduct.id), { costPrice: cost, costUpdatedAt: Date.now() }); setCostProduct(null); } catch (error) { alert('Não foi possível salvar o custo.'); }
       };
 
       const handleAddGift = async (product) => {
@@ -1738,6 +1746,10 @@
                   </div>
                 )}
 
+                {costProduct && (
+                  <div className="fixed inset-0 z-[96] bg-black/70 flex items-end justify-center"><form onSubmit={handleSaveProductCost} className="bg-white w-full max-w-md rounded-t-[2rem] p-5 text-zinc-900 space-y-4"><div className="flex justify-between items-center"><h3 className="font-black text-xl">💰 Custo do produto</h3><button type="button" onClick={() => setCostProduct(null)} className="text-red-500 font-black text-xl">✕</button></div><p className="text-xs text-zinc-500">{costProduct.name}</p><input name="cost" type="number" min="0" step="0.01" defaultValue={costProduct.costPrice || ''} placeholder="Custo real (R$)" className="w-full border rounded-xl px-3 py-3" required /><button className="w-full bg-green-600 text-white py-3 rounded-xl font-black">Salvar custo</button></form></div>
+                )}
+
                 {manualOrderOpen && (
                   <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
                     <div className="bg-white w-full max-w-md max-h-[92vh] overflow-y-auto rounded-t-[2rem] p-5 text-zinc-900">
@@ -1810,6 +1822,7 @@
                           {product.paused ? '▶️ Ativar' : '⏸️ Pausar'}
                         </button>
                         
+                        {userRole === 'admin' && <button onClick={() => setCostProduct(product)} className="px-3 py-2 rounded-xl text-xs font-bold bg-green-50 text-green-700">Custo</button>}
                         {userRole === 'admin' && (
                           <button onClick={() => handleDeleteProduct(product.id)} className="p-3 bg-red-50 text-red-500 rounded-xl">🗑️</button>
                         )}
