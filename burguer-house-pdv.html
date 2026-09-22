@@ -198,6 +198,7 @@
       const [couponUsageLimit, setCouponUsageLimit] = useState('1');
       const [crmCustomers, setCrmCustomers] = useState([]);
       const [crmCoupons, setCrmCoupons] = useState([]);
+      const [couponSearch, setCouponSearch] = useState('');
       const [promoTemplate, setPromoTemplate] = useState("Olá [Nome]! Tudo bem? Passando para avisar que hoje o cardápio da Burguer House está recheado de delícias. Que tal pedir seu lanche favorito agora? 🍔🔥");
       const [analysisStartDate, setAnalysisStartDate] = useState("");
       const [analysisEndDate, setAnalysisEndDate] = useState("");
@@ -1793,7 +1794,8 @@
 
                     <div className="bg-white rounded-3xl p-5 shadow-sm border border-zinc-200 space-y-3">
                       <div className="flex justify-between items-center"><h3 className="font-black text-base">🎟️ Cupons criados</h3><span className="text-xs text-zinc-500">{crmCoupons.filter(c => c.active !== false).length} ativos</span></div>
-                      {crmCoupons.slice(0, 20).map(coupon => {
+                      <input value={couponSearch} onChange={e => setCouponSearch(e.target.value)} placeholder="Buscar por código ou cliente..." className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-xs" />
+                      {crmCoupons.filter(c => !couponSearch || String(c.code || '').toLowerCase().includes(couponSearch.toLowerCase()) || String(c.customerName || '').toLowerCase().includes(couponSearch.toLowerCase())).slice(0, 20).map(coupon => {
                         const phone = String(coupon.customerPhone || '').replace(/\D/g, '');
                         const discount = coupon.discountType === 'percent' ? `${coupon.discountValue}%` : `R$ ${Number(coupon.discountValue || 0).toFixed(2)}`;
                         const until = coupon.validUntil?.toDate ? coupon.validUntil.toDate() : (coupon.validUntil ? new Date(coupon.validUntil) : null);
@@ -1808,6 +1810,7 @@
                         </div>;
                       })}
                       {crmCoupons.length === 0 && <p className="text-xs text-zinc-500">Nenhum cupom criado ainda.</p>}
+                      {crmCoupons.length > 0 && couponSearch && !crmCoupons.some(c => String(c.code || '').toLowerCase().includes(couponSearch.toLowerCase()) || String(c.customerName || '').toLowerCase().includes(couponSearch.toLowerCase())) && <p className="text-xs text-zinc-500">Nenhum cupom encontrado.</p>}
                     </div>
 
                     <div className="space-y-3">
