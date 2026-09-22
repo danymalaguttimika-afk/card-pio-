@@ -672,12 +672,14 @@
         const fee = manualOrderType === 'Entrega' ? deliveryFee : 0;
         try {
           const { db, collection, addDoc } = window.firebaseAPI;
-          const docRef = await addDoc(collection(db, 'orders'), {
+          const manualOrder = {
             customerName: customerName.trim(), customerPhone: customerPhone.trim(),
             customerAddress: addressText, items: cart, subtotal: itemsTotal,
             deliveryFee: fee, total: itemsTotal + fee, paymentMethod: manualPaymentMethod,
             status: 'pendente', source: 'manual', orderChannel: 'telefone', createdAt: Date.now()
-          });
+          };
+          const docRef = await addDoc(collection(db, 'orders'), manualOrder);
+          await upsertCustomerFromOrder(manualOrder);
           setCart([]); setCustomerName(''); setCustomerPhone(''); setStreet(''); setNumber('');
           setNeighborhood(''); setReference(''); setManualPaymentMethod('Pix');
           setManualOrderType('Entrega'); setManualOrderOpen(false); setPdvTab('orders');
@@ -1026,6 +1028,37 @@
         if (typeof value === 'number') return new Date(value);
         if (value.toDate) return value.toDate();
         return null;
+      };
+
+      const upsertCustomerFromOrder = async (order) => {
+        const phone = normalizePhone(order.customerPhone);
+        if (!phone) return;
+        const { db, doc, getDoc, setDoc } = window.firebaseAPI;
+        const ref = doc(db, 'customers', phone);
+        const existingSnap = await getDoc(ref);
+        const existing = existingSnap.exists() ? existingSnap.data() : {};
+        const created = parseOrderDate(order.createdAt) || new Date();
+        const oldTotalOrders = Number(existing.totalOrders) || 0;
+        const oldTotalSpent = Number(existing.totalSpent) || 0;
+        const totalOrders = oldTotalOrders + 1;
+        const totalSpent = Number((oldTotalSpent + (Number(order.total) || 0)).toFixed(2));
+        const addresses = Array.isArray(existing.addresses) ? [...existing.addresses] : [];
+        if (order.customerAddress && !addresses.some(a => a.value === order.customerAddress)) {
+          addresses.push({ label: 'Entrega', value: order.customerAddress, lastUsedAt: created });
+        }
+        await setDoc(ref, {
+          name: order.customerName || existing.name || '',
+          phone: order.customerPhone || existing.phone || '',
+          phoneNormalized: phone,
+          addresses,
+          totalOrders,
+          totalSpent,
+          avgTicket: Number((totalSpent / totalOrders).toFixed(2)),
+          firstOrderAt: existing.firstOrderAt || created,
+          lastOrderAt: created,
+          source: existing.source || order.source || 'desconhecido',
+          updatedAt: new Date()
+        }, { merge: true });
       };
 
       const rebuildCustomers = async () => {
