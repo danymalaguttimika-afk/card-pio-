@@ -478,7 +478,7 @@
 
       const handleDeleteWithdrawal = async (withdrawalId) => {
         if (!window.confirm("Deseja apagar este registro de retirada?")) return;
-        const updatedWithdrawals = (currentCash.withdrawals || []).filter(w => w.id !== withdrawalId);
+        const updatedWithdrawals = (currentCash.withdrawals || []).map(w => w.id === withdrawalId ? { ...w, voided: true, voidedAt: Date.now() } : w);
         try {
           const { db, doc, updateDoc } = window.firebaseAPI;
           await updateDoc(doc(db, 'cash_registers', currentCash.id), { withdrawals: updatedWithdrawals });
@@ -977,7 +977,7 @@
       const sessionCard = activeSessionOrdersValid.filter(o => o.paymentMethod === 'Cartão').reduce((acc, o) => acc + (o.total || 0), 0);
       const sessionCash = activeSessionOrdersValid.filter(o => o.paymentMethod === 'Dinheiro').reduce((acc, o) => acc + (o.total || 0), 0);
       
-      const totalWithdrawals = (currentCash?.withdrawals || []).reduce((acc, w) => acc + w.amount, 0);
+      const totalWithdrawals = (currentCash?.withdrawals || []).filter(w => !w.voided).reduce((acc, w) => acc + w.amount, 0);
       const expectedCashInDrawer = (currentCash?.openingChange || 0) + sessionCash - totalWithdrawals;
 
       const motoboyStats = {};
@@ -2155,8 +2155,8 @@
                                     <span className="text-[10px] text-zinc-400 block">{new Date(w.createdAt).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <span className="font-black text-red-600">- R$ {w.amount.toFixed(2)}</span>
-                                    <button type="button" onClick={() => handleDeleteWithdrawal(w.id)} className="text-red-400 hover:text-red-600 text-sm">✖️</button>
+                                    <span className={`font-black ${w.voided ? 'text-zinc-400 line-through' : 'text-red-600'}`}>{w.voided ? 'Estornada' : `- R$ ${w.amount.toFixed(2)}`}</span>
+                                    {!w.voided && <button type="button" onClick={() => handleDeleteWithdrawal(w.id)} className="text-red-400 hover:text-red-600 text-[10px] font-bold">Estornar</button>}
                                   </div>
                                 </div>
                               ))}
