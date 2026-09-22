@@ -172,6 +172,7 @@
 
       const [openingChangeInput, setOpeningChangeInput] = useState("0.00");
       const [withdrawalAmount, setWithdrawalAmount] = useState("");
+      const [closingCashInput, setClosingCashInput] = useState("");
       const [withdrawalReason, setWithdrawalReason] = useState("");
       const [newAddonName, setNewAddonName] = useState("");
       const [newAddonPrice, setNewAddonPrice] = useState("");
@@ -474,6 +475,8 @@
       const handleCloseCash = async () => {
         if (!currentCash) return;
         if (!window.confirm("Deseja realmente fechar o caixa do dia?")) return;
+        const countedCash = parseFloat(closingCashInput);
+        if (isNaN(countedCash) || countedCash < 0) return alert('Informe quanto dinheiro foi contado na gaveta.');
 
         // Ao fechar, garante que puxa os mesmos pedidos computados na sessão
         const closedCashList = cashRegisters.filter(c => c.status === 'fechado');
@@ -490,7 +493,7 @@
         try {
           const { db, doc, updateDoc } = window.firebaseAPI;
           await updateDoc(doc(db, 'cash_registers', currentCash.id), {
-            status: 'fechado', closedAt: Date.now(), totalSales, pixSales, cardSales, cashSales, totalWithdrawals
+            status: 'fechado', closedAt: Date.now(), totalSales, pixSales, cardSales, cashSales, totalWithdrawals, countedCash, cashDifference: Number((countedCash - expectedCashInDrawer).toFixed(2))
           });
           alert("Caixa fechado com sucesso!");
         } catch (error) { alert("Erro ao fechar caixa."); }
@@ -2135,6 +2138,11 @@
                           )}
                         </div>
 
+                        <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 space-y-2">
+                          <div className="flex justify-between text-xs"><span className="font-bold text-amber-900">Conferência da gaveta</span><span className="text-amber-700">Esperado: R$ {expectedCashInDrawer.toFixed(2)}</span></div>
+                          <input type="number" step="0.01" min="0" value={closingCashInput} onChange={e => setClosingCashInput(e.target.value)} placeholder="Dinheiro contado na gaveta (R$)" className="w-full bg-white border border-amber-300 rounded-xl px-3 py-3 text-sm font-black" />
+                          <p className="text-[10px] text-amber-700">A diferença será registrada no fechamento para conferência.</p>
+                        </div>
                         <button onClick={handleCloseCash} className="w-full bg-red-600 text-white font-black py-4 rounded-2xl shadow-md text-sm mt-4">
                           🔒 Fechar Caixa do Dia
                         </button>
