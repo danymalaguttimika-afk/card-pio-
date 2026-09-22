@@ -35,7 +35,7 @@
     h1,h2,h3,h4 { font-family:Georgia, 'Times New Roman', serif; }
     button { border-radius:12px; }
     .rounded-3xl { border-radius:18px !important; }
-    input, textarea, select { background:var(--bh-paper) !important; color:var(--bh-charcoal) !important; border-color:#c7aa80 !important; }
+    input, textarea, select { background:var(--bh-paper) !important; color:var(--bh-charcoal) !important; border-color:#c7aa80 !important; } .note-input { background:#18181b !important; color:#ffffff !important; -webkit-text-fill-color:#ffffff !important; caret-color:#ffffff !important; border-color:#52525b !important; }
     [class*="grid-cols-2"] > button { background:linear-gradient(145deg,#fff8ed,#ead9c0) !important; border:2px solid rgba(183,28,28,.22); }
     [class*="grid-cols-2"] > button:hover { border-color:var(--bh-red); transform:translateY(-2px); }
     .bg-red-600, .bg-red-500 { background:var(--bh-red) !important; }
@@ -1116,7 +1116,7 @@
                           value={productNote} 
                           onChange={(e) => setProductNote(e.target.value)} 
                           placeholder="Ex: Sem milho, sem cebola, sem alface..." 
-                          className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 !text-white placeholder:text-zinc-400 text-sm focus:outline-none focus:border-amber-500"
+                          className="note-input w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 placeholder:text-zinc-400 text-sm focus:outline-none focus:border-amber-500"
                         />
                       </div>
 
