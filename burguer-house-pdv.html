@@ -1642,6 +1642,7 @@
                           </div>
                           {order.customerPhone && <p className="text-xs text-zinc-500 mt-1">📱 {order.customerPhone}</p>}
                           {order.customerAddress && <p className="text-xs text-zinc-500 mt-1 leading-tight">📍 {order.customerAddress}</p>}
+                          <p className="text-[10px] text-zinc-400 mt-1">🕒 {new Date(order.createdAt).toLocaleString('pt-BR')} · há {Math.max(0, Math.floor((Date.now() - Number(order.createdAt || Date.now())) / 60000))} min</p>
                           
                           <div className="bg-zinc-50 rounded-2xl p-4 my-4 space-y-1">
                             {order.items.map((item, idx) => (
