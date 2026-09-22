@@ -1626,7 +1626,7 @@
                     <div className="flex bg-zinc-200 p-1 rounded-2xl mb-6">
                       {['todos', 'pendente', 'preparando', 'finalizado', 'cancelado'].map(tab => (
                         <button key={tab} onClick={() => setOrderFilter(tab)} className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold uppercase ${orderFilter === tab ? (tab === 'cancelado' ? 'bg-red-500 text-white' : 'bg-amber-500 text-black') : 'text-zinc-500'}`}>
-                          {tab === 'pendente' ? 'Novos' : tab === 'preparando' ? 'Cozinha' : tab === 'finalizado' ? 'Prontos' : 'Cancels.'}
+                          {tab === 'todos' ? 'Todos' : tab === 'pendente' ? 'Novos' : tab === 'preparando' ? 'Cozinha' : tab === 'finalizado' ? 'Prontos' : 'Cancels.'}
                         </button>
                       ))}
                     </div>
