@@ -673,8 +673,10 @@
             setShowTracker(true); 
           } catch(e) { console.error("Erro ao salvar cache", e); }
 
-          setOrderSuccess({ customerName, paymentMethod, total: cartTotal });
-          setCart([]); setIsCartOpen(false); 
+          setOrderSuccess({ customerName, paymentMethod, total: Math.max(0, itemsTotal - Number(couponResult?.discountAmount || couponDiscount || 0)) + deliveryFee });
+          setCart([]); setIsCartOpen(false); setCouponCode(''); setCouponDiscount(0); setCouponValidation(null);
+          const cleanUrl = new URL(window.location.href); cleanUrl.searchParams.delete('coupon'); window.history.replaceState({}, document.title, cleanUrl.pathname + (cleanUrl.search ? cleanUrl.search : ''));
+
         } catch (error) { alert("Erro ao gerar pedido."); }
       };
 
