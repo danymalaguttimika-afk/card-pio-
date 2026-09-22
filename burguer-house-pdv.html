@@ -1138,7 +1138,7 @@
       const displayedClients = uniqueClients.filter(c => {
         if (leadFilter === 'loyal') return c.ordersCount >= 2;
         if (leadFilter === 'churned') return c.daysAgo >= 15;
-        if (leadFilter === 'birthday') return c.birthday === new Date().toISOString().slice(5, 10);
+        if (leadFilter === 'birthday') { const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0'); return typeof c.birthday === 'string' && c.birthday.slice(0, 2) === currentMonth; }
         return true;
       });
 
