@@ -184,6 +184,7 @@
       const [birthdayInput, setBirthdayInput] = useState('');
       const [birthdayConsentInput, setBirthdayConsentInput] = useState(false);
       const [notesInput, setNotesInput] = useState('');
+      const [crmCustomers, setCrmCustomers] = useState([]);
       const [promoTemplate, setPromoTemplate] = useState("Olá [Nome]! Tudo bem? Passando para avisar que hoje o cardápio da Burguer House está recheado de delícias. Que tal pedir seu lanche favorito agora? 🍔🔥");
       const [analysisStartDate, setAnalysisStartDate] = useState("");
       const [analysisEndDate, setAnalysisEndDate] = useState("");
@@ -216,12 +217,15 @@
         let isInitialOrdersLoad = true;
         let unsubOrders = null;
         let unsubCash = null;
+        let unsubCustomers = null;
         let ordersPoll = null;
         const unsubAuth = window.firebaseAPI.onAuthStateChanged(window.firebaseAPI.auth, (user) => {
           if (unsubOrders) { unsubOrders(); unsubOrders = null; }
           if (unsubCash) { unsubCash(); unsubCash = null; }
+          if (unsubCustomers) { unsubCustomers(); unsubCustomers = null; }
           if (ordersPoll) { clearInterval(ordersPoll); ordersPoll = null; }
-          if (!user) { setOrders([]); setCashRegisters([]); setCurrentCash(null); return; }
+          if (!user) { setOrders([]); setCashRegisters([]); setCurrentCash(null); setCrmCustomers([]); return; }
+          unsubCustomers = onSnapshot(collection(db, 'customers'), (snap) => { setCrmCustomers(snap.docs.map(d => ({ id: d.id, ...d.data() }))); }, (err) => console.error('Erro ao atualizar CRM:', err));
           isInitialOrdersLoad = true;
           unsubOrders = onSnapshot(collection(db, 'orders'), (snap) => {
             if (!isInitialOrdersLoad && viewRef.current === 'pdv') {
@@ -1126,12 +1130,15 @@
       const now = Date.now();
       const uniqueClients = Object.values(uniqueClientsMap).map(c => {
         const daysAgo = c.lastOrderAt ? Math.floor((now - c.lastOrderAt) / (1000 * 60 * 60 * 24)) : 0;
-        return { ...c, daysAgo };
+        const normalized = normalizePhone(c.phone);
+        const crm = crmCustomers.find(item => item.phoneNormalized === normalized);
+        return { ...c, ...(crm || {}), ordersCount: c.ordersCount, daysAgo };
       });
       uniqueClients.sort((a, b) => b.lastOrderAt - a.lastOrderAt);
       const displayedClients = uniqueClients.filter(c => {
         if (leadFilter === 'loyal') return c.ordersCount >= 2;
         if (leadFilter === 'churned') return c.daysAgo >= 15;
+        if (leadFilter === 'birthday') return c.birthday === new Date().toISOString().slice(5, 10);
         return true;
       });
 
@@ -1668,6 +1675,7 @@
                         <button onClick={() => setLeadFilter('all')} className={`flex-1 py-2 rounded-xl text-xs font-bold ${leadFilter === 'all' ? 'bg-amber-500 text-black' : 'text-zinc-500'}`}>Todos ({uniqueClients.length})</button>
                         <button onClick={() => setLeadFilter('loyal')} className={`flex-1 py-2 rounded-xl text-xs font-bold ${leadFilter === 'loyal' ? 'bg-amber-500 text-black' : 'text-zinc-500'}`}>Fiéis (2+)</button>
                         <button onClick={() => setLeadFilter('churned')} className={`flex-1 py-2 rounded-xl text-xs font-bold ${leadFilter === 'churned' ? 'bg-red-500 text-white' : 'text-zinc-500'}`}>Sumidos (&gt;15d)</button>
+                        <button onClick={() => setLeadFilter('birthday')} className={`flex-1 py-2 rounded-xl text-xs font-bold ${leadFilter === 'birthday' ? 'bg-pink-500 text-white' : 'text-zinc-500'}`}>🎂 Aniversários</button>
                       </div>
                     </div>
 
