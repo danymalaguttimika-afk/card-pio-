@@ -1604,7 +1604,8 @@
                             setSyncCustomersMessage(`${total} clientes sincronizados.`);
                           } catch (err) {
                             console.error('Erro ao sincronizar clientes:', err);
-                            setSyncCustomersMessage('Erro ao sincronizar clientes.');
+                            const detail = err?.code || err?.message || 'erro desconhecido';
+                            setSyncCustomersMessage(`Erro: ${detail}`);
                           } finally {
                             setSyncingCustomers(false);
                           }
