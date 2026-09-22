@@ -1783,6 +1783,12 @@
                         className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl p-3 text-xs text-zinc-800 h-24 focus:outline-none focus:border-amber-500 font-sans" 
                       />
 
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="bg-zinc-50 rounded-2xl p-3"><p className="text-[10px] text-zinc-500">Clientes</p><b className="text-lg">{uniqueClients.length}</b></div>
+                        <div className="bg-zinc-50 rounded-2xl p-3"><p className="text-[10px] text-zinc-500">Pedidos</p><b className="text-lg">{uniqueClients.reduce((sum, c) => sum + (Number(c.ordersCount || c.totalOrders) || 0), 0)}</b></div>
+                        <div className="bg-zinc-50 rounded-2xl p-3"><p className="text-[10px] text-zinc-500">Faturado</p><b className="text-sm">R$ {uniqueClients.reduce((sum, c) => sum + (Number(c.totalSpent) || 0), 0).toFixed(2)}</b></div>
+                      </div>
+
                       <div className="flex bg-zinc-100 p-1 rounded-2xl">
                         <button onClick={() => setLeadFilter('all')} className={`flex-1 py-2 rounded-xl text-xs font-bold ${leadFilter === 'all' ? 'bg-amber-500 text-black' : 'text-zinc-500'}`}>Todos ({uniqueClients.length})</button>
                         <button onClick={() => setLeadFilter('loyal')} className={`flex-1 py-2 rounded-xl text-xs font-bold ${leadFilter === 'loyal' ? 'bg-amber-500 text-black' : 'text-zinc-500'}`}>Fiéis (2+)</button>
