@@ -47,6 +47,9 @@
     .bh-field:focus { outline:3px solid rgba(255,193,7,.35); border-color:#B71C1C !important; }
     .bh-field-label { display:block; color:#3b2a20; background:#f5f5f5; font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:.06em; padding:3px 8px; border-radius:7px; margin-top:4px; }
     .bh-field-label span { font-weight:600; text-transform:none; letter-spacing:0; color:#806b59; }
+    input.bh-observation-input { background:#f5f5f5 !important; color:#1e1e1e !important; -webkit-text-fill-color:#1e1e1e !important; caret-color:#1e1e1e !important; border:1px solid #b88758 !important; }
+    input.bh-observation-input::placeholder { color:#806b59 !important; -webkit-text-fill-color:#806b59 !important; opacity:1 !important; }
+    input.bh-observation-input:focus { outline:3px solid rgba(255,193,7,.35) !important; border-color:#B71C1C !important; }
   </style>
 </head>
 <body class="bg-zinc-950 text-white selection:bg-amber-500 selection:text-white">
@@ -1092,7 +1095,7 @@
                           value={productNote} 
                           onChange={(e) => setProductNote(e.target.value)} 
                           placeholder="Ex: Sem milho, sem cebola, sem alface..." 
-                          className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500"
+                          className="bh-observation-input w-full rounded-xl px-4 py-3 text-sm"
                         />
                       </div>
 
