@@ -132,6 +132,8 @@
       
       const [storeOpen, setStoreOpen] = useState(true);
       const [banners, setBanners] = useState([]);
+      const [bannerIndex, setBannerIndex] = useState(0);
+      const [bannerPaused, setBannerPaused] = useState(false);
       const [deliveryFee, setDeliveryFee] = useState(5.00);
       const [pixKeyConfig, setPixKeyConfig] = useState("11999999999 (Chave Pix Exemplo)");
       
@@ -823,6 +825,40 @@
       const nowForBanners = Date.now();
       const visibleBanners = banners.filter(b => b && b.active !== false && b.imageUrl && (!bannerMillis(b.startAt) || bannerMillis(b.startAt) <= nowForBanners) && (!bannerMillis(b.endAt) || bannerMillis(b.endAt) >= nowForBanners)).sort((a,b) => Number(a.order||0)-Number(b.order||0)).slice(0,4);
 
+      useEffect(() => {
+        setBannerIndex(index => visibleBanners.length ? index % visibleBanners.length : 0);
+      }, [visibleBanners.length]);
+
+      useEffect(() => {
+        if (bannerPaused || visibleBanners.length <= 1 || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+        const timer = window.setInterval(() => setBannerIndex(index => (index + 1) % visibleBanners.length), 5000);
+        return () => window.clearInterval(timer);
+      }, [visibleBanners.length, bannerPaused]);
+
+      useEffect(() => {
+        if (!trackedOrder || trackedOrder.status !== 'finalizado') return;
+        const finalTimes = (Array.isArray(trackedOrder.statusHistory) ? trackedOrder.statusHistory : [])
+          .filter(entry => entry && entry.to === 'finalizado')
+          .map(entry => bannerMillis(entry.at))
+          .filter(value => value > 0);
+        const historyFinalizedAt = finalTimes.length ? Math.max(...finalTimes) : 0;
+        const finalizedAt = historyFinalizedAt || bannerMillis(trackedOrder.finalizedAt) || bannerMillis(trackedOrder.updatedAt) || bannerMillis(trackedOrder.createdAt);
+        const expiresAt = finalizedAt + 6 * 60 * 60 * 1000;
+        const hideTracker = () => {
+          try {
+            localStorage.removeItem('malaguti_order_id');
+            localStorage.removeItem('malaguti_order_saved_at');
+          } catch (e) { console.warn('Não foi possível limpar o rastreio salvo.', e); }
+          setTrackedOrderId(null);
+          setTrackedOrder(null);
+          setShowTracker(false);
+        };
+        const remaining = expiresAt - Date.now();
+        if (remaining <= 0) { hideTracker(); return; }
+        const timer = window.setTimeout(hideTracker, remaining);
+        return () => window.clearTimeout(timer);
+      }, [trackedOrder]);
+
       // CÁLCULO INTELIGENTE DO CAIXA: Puxa desde o momento em que o último caixa foi fechado
       const closedCashRegistersList = cashRegisters.filter(c => c.status === 'fechado');
       const lastClosedTime = closedCashRegistersList.length > 0 ? Math.max(...closedCashRegistersList.map(c => c.closedAt)) : new Date().setHours(0,0,0,0);
@@ -1032,12 +1068,27 @@
               </div>
 
               <section aria-label="Destaques" className="px-4 pt-4 space-y-3">
-                {visibleBanners.length ? visibleBanners.map((banner, index) => (
-                  <article key={banner.id || index} className="overflow-hidden rounded-3xl border border-amber-500/30 bg-zinc-900 shadow-lg">
-                    <img src={banner.imageUrl} alt={banner.title || 'Destaque Burguer House'} className="block w-full aspect-[2/1] object-cover" loading={index > 0 ? 'lazy' : 'eager'} />
-                    {(banner.title || banner.subtitle) && <div className="px-4 py-3"><h2 className="font-black text-white text-lg">{banner.title || 'Burguer House'}</h2>{banner.subtitle && <p className="text-sm text-zinc-300 mt-1">{banner.subtitle}</p>}</div>}
+                {visibleBanners.length ? (
+                  <article
+                    key={visibleBanners[bannerIndex % visibleBanners.length]?.id || bannerIndex}
+                    className="overflow-hidden rounded-3xl border border-amber-500/30 bg-zinc-900 shadow-lg"
+                    onMouseEnter={() => setBannerPaused(true)}
+                    onMouseLeave={() => setBannerPaused(false)}
+                    onFocus={() => setBannerPaused(true)}
+                    onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setBannerPaused(false); }}
+                  >
+                    {(() => {
+                      const banner = visibleBanners[bannerIndex % visibleBanners.length];
+                      return (
+                        <>
+                          <img src={banner.imageUrl} alt={banner.title || 'Destaque Burguer House'} className="block w-full aspect-[2/1] object-cover" loading="eager" />
+                          {(banner.title || banner.subtitle) && <div className="px-4 py-3"><h2 className="font-black text-white text-lg">{banner.title || 'Burguer House'}</h2>{banner.subtitle && <p className="text-sm text-zinc-300 mt-1">{banner.subtitle}</p>}</div>}
+                          {visibleBanners.length > 1 && <div className="flex justify-center gap-2 px-4 pb-3" aria-label="Escolher destaque">{visibleBanners.map((item, index) => <button type="button" key={item.id || index} onClick={() => setBannerIndex(index)} aria-label={`Mostrar destaque ${index + 1}`} aria-current={index === bannerIndex ? 'true' : undefined} className={`h-2.5 rounded-full transition-all ${index === bannerIndex ? 'w-6 bg-amber-400' : 'w-2.5 bg-zinc-500'}`} />)}</div>}
+                        </>
+                      );
+                    })()}
                   </article>
-                )) : (
+                ) : (
                   <article className="rounded-3xl border border-amber-500/30 bg-gradient-to-r from-red-950 via-zinc-900 to-zinc-900 p-5 shadow-lg">
                     <p className="text-xs font-black uppercase tracking-[.18em] text-amber-400">Burguer House · Delivery</p>
                     <h2 className="text-xl font-black text-white mt-2">Bem-vindo!</h2>
