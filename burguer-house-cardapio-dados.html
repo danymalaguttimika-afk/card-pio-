@@ -64,8 +64,8 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-    import { getFirestore, collection, onSnapshot, getDoc, addDoc, deleteDoc, doc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+    import { getFirestore, collection, onSnapshot, getDoc, addDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
     // Chaves oficiais da Burguer House
     const firebaseConfig = {
@@ -85,9 +85,8 @@
       window.firebaseAPI = {
         auth,
         onAuthStateChanged,
-        signInWithEmailAndPassword, signOut,
         db: getFirestore(app),
-        collection, onSnapshot, getDoc, addDoc, deleteDoc, doc, updateDoc, setDoc
+        collection, onSnapshot, getDoc, addDoc, doc
       };
       window.dispatchEvent(new Event('firebase-ready'));
     } catch (e) {
@@ -122,12 +121,9 @@
     };
 
     function MainApp() {
-      const [view, setView] = useState('menu');
+      const isPickupOrder = (order) => { const norm = value => String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); const type=norm(order?.orderType||order?.deliveryType||order?.type),address=norm(order?.customerAddress||order?.address); return order?.isPickup===true||/retirada|pickup|balcao/.test(type)||/retirada no balcao|retirada no local/.test(address); };
+      const [view] = useState('menu');
       const [userRole, setUserRole] = useState(null);
-      const [loginOpen, setLoginOpen] = useState(false);
-      const [loginEmail, setLoginEmail] = useState('');
-      const [loginPassword, setLoginPassword] = useState('');
-      const [loginError, setLoginError] = useState(''); 
 
       const [products, setProducts] = useState([]);
       const [orders, setOrders] = useState([]);
@@ -135,6 +131,7 @@
       const [currentCash, setCurrentCash] = useState(null);
       
       const [storeOpen, setStoreOpen] = useState(true);
+      const [banners, setBanners] = useState([]);
       const [deliveryFee, setDeliveryFee] = useState(5.00);
       const [pixKeyConfig, setPixKeyConfig] = useState("11999999999 (Chave Pix Exemplo)");
       
@@ -143,8 +140,6 @@
       const [addons, setAddons] = useState([]);
       const [motoboys, setMotoboys] = useState([]);
       
-      const [adminPassConfig, setAdminPassConfig] = useState("admin123");
-      const [operatorPassConfig, setOperatorPassConfig] = useState("1234");
       
       const [loading, setLoading] = useState(true);
 
@@ -153,7 +148,12 @@
       const [selectedProduct, setSelectedProduct] = useState(null);
       const [selectedAddons, setSelectedAddons] = useState({});
       const [productNote, setProductNote] = useState("");
-      const [paymentMethod, setPaymentMethod] = useState("Pix"); 
+      const [paymentMethod, setPaymentMethod] = useState("Pix");
+      const [customerOrderType, setCustomerOrderType] = useState("Entrega"); 
+      const [couponCode, setCouponCode] = useState(() => new URLSearchParams(window.location.search).get("coupon") || "");
+      const [couponDiscount, setCouponDiscount] = useState(0);
+      const [couponValidation, setCouponValidation] = useState(null);
+      const [couponValidating, setCouponValidating] = useState(false); 
       
       const [customerName, setCustomerName] = useState("");
       const [customerPhone, setCustomerPhone] = useState("");
@@ -180,8 +180,6 @@
       const [feeInput, setFeeInput] = useState("5.00");
       const [pixInput, setPixInput] = useState("11999999999");
       
-      const [adminPassInput, setAdminPassInput] = useState("");
-      const [operatorPassInput, setOperatorPassInput] = useState("");
 
       const [dispatchMsgInput, setDispatchMsgInput] = useState("Olá [Nome], o seu pedido saiu para entrega. Obrigado pela preferência e que DEUS o abençoe. 🙏🍔");
       const [dispatchMessageTemplate, setDispatchMessageTemplate] = useState("Olá [Nome], o seu pedido saiu para entrega. Obrigado pela preferência e que DEUS o abençoe. 🙏🍔");
@@ -223,31 +221,11 @@
           }
         } catch(e) { console.error("Erro ao ler cache:", e); }
 
-        const { db, collection, onSnapshot, doc, setDoc } = window.firebaseAPI;
+        const { db, collection, onSnapshot, doc } = window.firebaseAPI;
 
         const unsubProducts = onSnapshot(collection(db, 'products'), (snap) => {
           setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
         }, (err) => { console.error(err); });
-
-        let isInitialOrdersLoad = true;
-        const unsubOrders = onSnapshot(collection(db, 'orders'), (snap) => {
-          if (!isInitialOrdersLoad && viewRef.current === 'pdv') {
-            const hasNewOrder = snap.docChanges().some(change => change.type === 'added');
-            if (hasNewOrder) playBeep();
-          }
-          isInitialOrdersLoad = false;
-          const ords = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          ords.sort((a, b) => b.createdAt - a.createdAt);
-          setOrders(ords);
-        }, (err) => { console.error(err); });
-
-        const unsubCash = onSnapshot(collection(db, 'cash_registers'), (snap) => {
-          const cashList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          cashList.sort((a, b) => b.openedAt - a.openedAt);
-          setCashRegisters(cashList);
-          const active = cashList.find(c => c.status === 'aberto');
-          setCurrentCash(active || null);
-        }, (err) => console.error(err));
 
         const unsubConfig = onSnapshot(doc(db, 'settings', 'config'), (docSnap) => {
           if (docSnap.exists()) {
@@ -257,25 +235,13 @@
             setPixKeyConfig(data.pixKey || "11999999999");
             setPixInput(data.pixKey || "11999999999");
             setStoreOpen(data.storeOpen !== false);
+            setBanners(Array.isArray(data.banners) ? data.banners.slice(0,4) : []);
             
-            const adm = data.adminPass || "admin123";
-            const ope = data.operatorPass || "1234";
-            setAdminPassConfig(adm);
-            setOperatorPassConfig(ope);
-            setAdminPassInput(adm);
-            setOperatorPassInput(ope);
 
             if(data.dispatchMessage) {
               setDispatchMessageTemplate(data.dispatchMessage);
               setDispatchMsgInput(data.dispatchMessage);
             }
-          } else {
-            setDoc(doc(db, 'settings', 'config'), { 
-              fee: 5.00, 
-              pixKey: "11999999999", 
-              storeOpen: true, 
-              dispatchMessage: "Olá [Nome], o seu pedido saiu para entrega. Obrigado pela preferência e que DEUS o abençoe. 🙏🍔"
-            });
           }
         }, (err) => console.error(err));
 
@@ -291,14 +257,10 @@
           setAddons(snap.docs.map(d => ({ id: d.id, ...d.data() })));
         }, (err) => console.error(err));
 
-        const unsubMotoboys = onSnapshot(doc(db, 'settings', 'motoboys'), (docSnap) => {
-          if (docSnap.exists()) setMotoboys(docSnap.data().list || []);
-        });
-
         setTimeout(() => { setLoading(false); }, 800);
 
         return () => {
-          unsubProducts(); unsubOrders(); unsubCash(); unsubConfig(); unsubCats(); unsubAddons(); unsubMotoboys();
+          unsubProducts(); unsubConfig(); unsubCats(); unsubAddons();
         };
       }, []);
 
@@ -317,7 +279,7 @@
               const snap = await getDoc(doc(db, 'orders', trackedOrderId));
               if (snap.exists()) {
                 const ordData = { id: snap.id, ...snap.data() };
-                const ordersAhead = orders.filter(o => o.createdAt < ordData.createdAt && (o.status === 'pendente' || o.status === 'preparando')).length;
+                const ordersAhead = 0;
                 setTrackedOrder({ ...ordData, estMinutes: 25 + (ordersAhead * 5) });
               }
             } catch (error) { console.error('Atualização alternativa do pedido:', error); }
@@ -326,7 +288,7 @@
           unsubOrder = onSnapshot(doc(db, 'orders', trackedOrderId), (docSnap) => {
             if (docSnap.exists()) {
               const ordData = { id: docSnap.id, ...docSnap.data() };
-              const ordersAhead = orders.filter(o => o.createdAt < ordData.createdAt && (o.status === 'pendente' || o.status === 'preparando')).length;
+              const ordersAhead = 0;
               const estMinutes = 25 + (ordersAhead * 5);
               setTrackedOrder({ ...ordData, estMinutes });
             } else {
@@ -356,37 +318,6 @@
           console.error(error);
           alert('Não foi possível alterar o status da loja. Verifique se o usuário está conectado.');
         }
-      };
-
-      const handlePdvAccess = () => {
-        setLoginError('');
-        setLoginOpen(true);
-        setView('pdv');
-      };
-
-      const handlePdvLogin = async (e) => {
-        e.preventDefault();
-        setLoginError('');
-        try {
-          const { auth, signInWithEmailAndPassword } = window.firebaseAPI;
-          await signInWithEmailAndPassword(auth, loginEmail.trim(), loginPassword);
-          playBeep();
-          setUserRole('admin');
-          setLoginPassword('');
-          setLoginOpen(false);
-          setPdvTab('orders');
-        } catch (error) {
-          console.error(error);
-          setLoginError('E-mail ou senha inválidos.');
-        }
-      };
-
-      const handleExitPdv = async () => {
-        try { await window.firebaseAPI.signOut(window.firebaseAPI.auth); } catch (e) {}
-        setUserRole(null);
-        setLoginOpen(false);
-        setView('pdv');
-        setPdvTab('orders');
       };
 
       const handleAddMotoboy = async (e) => {
@@ -597,43 +528,92 @@
       };
 
       const itemsTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-      const cartTotal = itemsTotal + deliveryFee;
+      const currentDeliveryFee = customerOrderType === 'Entrega' ? deliveryFee : 0;
+      const cartTotal = Math.max(0, itemsTotal - couponDiscount) + currentDeliveryFee;
+
+      const validateCoupon = async () => {
+        if (!couponCode.trim()) { setCouponDiscount(0); setCouponValidation(null); return null; }
+        setCouponValidating(true);
+        try {
+          const response = await fetch('https://api.vizzitech.com.br/coupon/validate', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: couponCode.trim().toUpperCase(), customerPhone, subtotal: itemsTotal })
+          });
+          const result = await response.json();
+          if (!result.valid) { setCouponDiscount(0); setCouponValidation(result); return result; }
+          setCouponDiscount(Number(result.discountAmount || 0)); setCouponValidation(result); return result;
+        } catch (error) {
+          setCouponDiscount(0); setCouponValidation({ valid: false, error: 'service_unavailable' });
+          return { valid: false, error: 'service_unavailable' };
+        } finally { setCouponValidating(false); }
+      };
 
       const handleCheckout = async () => {
         if (!storeOpen) return alert("Desculpe, a loja está fechada no momento.");
         if (cart.length === 0) return;
         if (!customerName.trim()) return alert("Por favor, insira seu nome.");
         if (!customerPhone.trim()) return alert("Por favor, insira seu WhatsApp.");
-        if (!street.trim()) return alert("Por favor, insira o nome da rua.");
-        if (!number.trim()) return alert("Por favor, insira o número.");
-        if (!neighborhood.trim()) return alert("Por favor, insira o bairro.");
+        if (customerOrderType === 'Entrega' && !street.trim()) return alert("Por favor, insira o nome da rua.");
+        if (customerOrderType === 'Entrega' && !number.trim()) return alert("Por favor, insira o número.");
+        if (customerOrderType === 'Entrega' && !neighborhood.trim()) return alert("Por favor, insira o bairro.");
         if (!paymentMethod) return alert("Por favor, selecione a forma de pagamento.");
+        const couponResult = await validateCoupon();
+        if (couponCode.trim() && (!couponResult || !couponResult.valid)) return alert('Cupom inválido ou indisponível. Confira o código e tente novamente.');
 
-        let addressText = `${street}, ${number} - ${neighborhood}`;
-        if (reference.trim()) addressText += ` (Ref: ${reference})`;
-
+        let addressText = customerOrderType === 'Retirada' ? 'Retirada no balcão' : `${street}, ${number} - ${neighborhood}`;
+        if (customerOrderType === 'Entrega' && reference.trim()) addressText += ` (Ref: ${reference})`;
+        let appliedDiscount = 0;
         try {
-          const { db, collection, addDoc } = window.firebaseAPI;
-          const docRef = await addDoc(collection(db, 'orders'), {
-            customerName, customerPhone, customerAddress: addressText, 
-            items: cart, subtotal: itemsTotal, deliveryFee: deliveryFee, total: cartTotal, 
-            paymentMethod: paymentMethod, phone: WHATSAPP_NUMBER, status: 'pendente', source: 'whatsapp', createdAt: Date.now()
+          const { db, auth, onAuthStateChanged, collection, addDoc } = window.firebaseAPI;
+          const customerUid = await new Promise((resolve, reject) => {
+            if (auth.currentUser) return resolve(auth.currentUser.uid);
+            let unsubscribe;
+            const timeout = setTimeout(() => {
+              if (unsubscribe) unsubscribe();
+              reject(new Error('Tempo esgotado aguardando autenticação anônima.'));
+            }, 10000);
+            unsubscribe = onAuthStateChanged(auth, user => {
+              if (!user) return;
+              clearTimeout(timeout); unsubscribe(); resolve(user.uid);
+            });
           });
-          
+          const docRef = await addDoc(collection(db, 'orders'), {
+            customerUid, customerName: customerName.trim(), customerPhone: customerPhone.trim(), customerAddress: addressText,
+            items: cart, subtotal: itemsTotal, discountAmount: 0, couponCode: couponCode.trim().toUpperCase() || null,
+            couponId: couponResult?.valid ? couponResult.couponId : null, orderType: customerOrderType, deliveryFee: currentDeliveryFee, total: itemsTotal + currentDeliveryFee,
+            paymentMethod, phone: WHATSAPP_NUMBER, status: 'pendente', source: 'whatsapp',
+            couponStatus: couponResult?.valid ? 'pending' : null, createdAt: Date.now()
+          });
+
+          if (couponResult?.valid) {
+            try {
+              const response = await fetch('https://api.vizzitech.com.br/coupon/redeem', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: couponCode.trim().toUpperCase(), couponId: couponResult.couponId,
+                  orderId: docRef.id, customerPhone, subtotal: itemsTotal, deliveryFee: currentDeliveryFee })
+              });
+              const redemption = await response.json();
+              if (redemption.redeemed) appliedDiscount = Number(redemption.discountAmount || 0);
+              else alert('O cupom não pôde ser reservado e não foi aplicado ao pedido. O pedido será enviado sem desconto.');
+            } catch (redemptionError) {
+              alert('Não foi possível confirmar o cupom. O pedido será enviado sem desconto.');
+            }
+          }
+
           try {
-            localStorage.setItem('malaguti_customer_data', JSON.stringify({
-              customerName, customerPhone, street, number, neighborhood, reference
-            }));
+            localStorage.setItem('malaguti_customer_data', JSON.stringify({ customerName, customerPhone, street, number, neighborhood, reference }));
             localStorage.setItem('malaguti_order_id', docRef.id);
             localStorage.setItem('malaguti_order_saved_at', String(Date.now()));
             setTrackedOrderId(docRef.id);
             setTrackedOrder({ id: docRef.id, status: 'pendente', createdAt: Date.now(), estMinutes: 25 });
-            setShowTracker(true); 
+            setShowTracker(true);
           } catch(e) { console.error("Erro ao salvar cache", e); }
 
-          setOrderSuccess({ customerName, paymentMethod, total: cartTotal });
-          setCart([]); setIsCartOpen(false); 
-        } catch (error) { alert("Erro ao gerar pedido."); }
+          setOrderSuccess({ customerName, paymentMethod, total: Math.max(0, itemsTotal - appliedDiscount) + currentDeliveryFee });
+          setCart([]); setIsCartOpen(false); setCouponCode(''); setCouponDiscount(0); setCouponValidation(null); setCustomerOrderType('Entrega');
+          const cleanUrl = new URL(window.location.href); cleanUrl.searchParams.delete('coupon');
+          window.history.replaceState({}, document.title, cleanUrl.pathname + (cleanUrl.search ? cleanUrl.search : ''));
+        } catch (error) { console.error(error); alert("Erro ao gerar pedido."); }
       };
 
       // Cria pedidos recebidos por telefone diretamente no PDV.
@@ -839,6 +819,10 @@
           }))
         .filter(p => !p.paused);
 
+      const bannerMillis = value => { if (!value) return 0; if (typeof value === 'number') return value; if (value?.toDate) return value.toDate().getTime(); const n = new Date(value).getTime(); return Number.isNaN(n) ? 0 : n; };
+      const nowForBanners = Date.now();
+      const visibleBanners = banners.filter(b => b && b.active !== false && b.imageUrl && (!bannerMillis(b.startAt) || bannerMillis(b.startAt) <= nowForBanners) && (!bannerMillis(b.endAt) || bannerMillis(b.endAt) >= nowForBanners)).sort((a,b) => Number(a.order||0)-Number(b.order||0)).slice(0,4);
+
       // CÁLCULO INTELIGENTE DO CAIXA: Puxa desde o momento em que o último caixa foi fechado
       const closedCashRegistersList = cashRegisters.filter(c => c.status === 'fechado');
       const lastClosedTime = closedCashRegistersList.length > 0 ? Math.max(...closedCashRegistersList.map(c => c.closedAt)) : new Date().setHours(0,0,0,0);
@@ -950,15 +934,7 @@
       return (
         <div className="min-h-screen relative pb-20 w-full overflow-x-hidden font-sans">
           
-          <div className="fixed top-2 right-2 z-50 bg-zinc-800/80 p-1 rounded-full flex gap-1 border border-zinc-700 shadow-xl backdrop-blur-md">
-            {view === 'pdv' ? (
-              <button onClick={handleExitPdv} className="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase transition-colors text-red-400">Sair do PDV ✖</button>
-            ) : (
-              <>
-                <button onClick={() => setView('menu')} className="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase transition-colors bg-amber-500 text-black">Cardápio</button>
-              </>
-            )}
-          </div>
+
 
           {!storeOpen && view === 'menu' && (
              <div className="bg-red-600 text-white text-center py-2.5 text-xs font-black tracking-wide uppercase shadow-md sticky top-0 z-[40] flex justify-center items-center gap-2">
@@ -973,7 +949,7 @@
                 <p className="text-sm font-black text-amber-500 mt-0.5">
                   {trackedOrder.status === 'pendente' && '📝 Aguardando Confirmação'}
                   {trackedOrder.status === 'preparando' && '🍳 Sendo Preparado na Cozinha'}
-                  {trackedOrder.status === 'finalizado' && '🛵 Saiu para Entrega'}
+                  {trackedOrder.status === 'finalizado' && (isPickupOrder(trackedOrder) ? '✅ Pronto para retirada no balcão' : '🛵 Saiu para entrega')}
                   {trackedOrder.status === 'cancelado' && '🚫 Pedido Cancelado'}
                 </p>
                 {trackedOrder.status !== 'finalizado' && trackedOrder.status !== 'cancelado' && (
@@ -989,7 +965,7 @@
                onClick={() => setShowTracker(true)} 
                className="fixed bottom-24 right-4 z-40 bg-amber-500 text-zinc-950 p-4 rounded-full shadow-[0_10px_20px_rgba(245,158,11,0.4)] font-black flex items-center justify-center animate-bounce"
             >
-              🛵
+              {isPickupOrder(trackedOrder)?'🏪':'🛵'}
             </button>
           )}
 
@@ -1001,7 +977,7 @@
                      </div>
                      <h2 className="text-2xl font-black text-white mb-2 tracking-tight">Pedido Recebido! 🎉</h2>
                      <p className="text-zinc-400 text-sm mb-4 leading-relaxed">
-                         Olá <strong>{orderSuccess.customerName}</strong>, seu pedido já está no nosso sistema. O tempo estimado de entrega é de aproximadamente <strong className="text-amber-500">30 a 45 minutos</strong>.
+                         Olá <strong>{orderSuccess.customerName}</strong>, seu pedido já está no nosso sistema. {isPickupOrder(orderSuccess) ? 'Você receberá uma mensagem quando estiver pronto para retirada no balcão.' : <>O tempo estimado de entrega é de aproximadamente <strong className="text-amber-500">30 a 45 minutos</strong>.</>}
                      </p>
 
                      {trackedOrder && (
@@ -1010,7 +986,7 @@
                            <p className="text-amber-500 font-black text-sm mt-1">
                              {trackedOrder.status === 'pendente' && '📝 Aguardando confirmação'}
                              {trackedOrder.status === 'preparando' && '🍳 Em preparo'}
-                             {trackedOrder.status === 'finalizado' && '🛵 Saiu para entrega'}
+                             {trackedOrder.status === 'finalizado' && (isPickupOrder(trackedOrder) ? '✅ Pronto para retirada no balcão' : '🛵 Saiu para entrega')}
                              {trackedOrder.status === 'cancelado' && '🚫 Cancelado'}
                            </p>
                          </div>
@@ -1040,7 +1016,7 @@
           {view === 'menu' && (
             <div className="w-full max-w-md mx-auto relative bg-zinc-950 min-h-screen shadow-2xl">
               <header className="bg-zinc-900 rounded-b-[2.5rem] pt-12 pb-8 px-6 shadow-2xl relative z-10 flex flex-col items-center">
-                <img src={LOGO_URL} alt="Logo" className="w-44 h-44 object-contain mb-4 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" onError={(e) => e.target.style.display = 'none'} />
+                <img src="bh-original-logo-preview.png" alt="Logo original Burguer House" className="w-44 h-44 object-contain mb-4 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" onError={(e) => e.target.style.display = 'none'} />
                 <h1 className="text-3xl font-black text-white tracking-tight">BURGUER <span className="text-yellow-400">HOUSE</span></h1>
                 <p className="text-zinc-400 text-sm mt-1">Delivery</p>
               </header>
@@ -1054,6 +1030,21 @@
                   ))}
                 </div>
               </div>
+
+              <section aria-label="Destaques" className="px-4 pt-4 space-y-3">
+                {visibleBanners.length ? visibleBanners.map((banner, index) => (
+                  <article key={banner.id || index} className="overflow-hidden rounded-3xl border border-amber-500/30 bg-zinc-900 shadow-lg">
+                    <img src={banner.imageUrl} alt={banner.title || 'Destaque Burguer House'} className="block w-full aspect-[2/1] object-cover" loading={index > 0 ? 'lazy' : 'eager'} />
+                    {(banner.title || banner.subtitle) && <div className="px-4 py-3"><h2 className="font-black text-white text-lg">{banner.title || 'Burguer House'}</h2>{banner.subtitle && <p className="text-sm text-zinc-300 mt-1">{banner.subtitle}</p>}</div>}
+                  </article>
+                )) : (
+                  <article className="rounded-3xl border border-amber-500/30 bg-gradient-to-r from-red-950 via-zinc-900 to-zinc-900 p-5 shadow-lg">
+                    <p className="text-xs font-black uppercase tracking-[.18em] text-amber-400">Burguer House · Delivery</p>
+                    <h2 className="text-xl font-black text-white mt-2">Bem-vindo!</h2>
+                    <p className="text-sm text-zinc-300 mt-1">Escolha seu próximo lanche favorito.</p>
+                  </article>
+                )}
+              </section>
 
               <main className="p-4 space-y-4 pb-32">
                 {filteredProducts.map(product => (
@@ -1189,29 +1180,43 @@
 
                       <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2 text-sm text-zinc-300">
                         <div className="flex justify-between"><span>Subtotal:</span> <span>R$ {itemsTotal.toFixed(2)}</span></div>
-                        <div className="flex justify-between"><span>Taxa de Entrega:</span> <span>R$ {deliveryFee.toFixed(2)}</span></div>
+                        {couponDiscount > 0 && <div className="flex justify-between text-green-400"><span>Desconto ({couponCode}):</span><span>− R$ {couponDiscount.toFixed(2)}</span></div>}
+                        <div className="flex justify-between"><span>{customerOrderType === 'Entrega' ? 'Taxa de Entrega:' : 'Retirada:'}</span> <span>R$ {currentDeliveryFee.toFixed(2)}</span></div>
                         <div className="flex justify-between text-base font-black text-amber-500 pt-2 border-t border-zinc-800">
                           <span>Total Geral:</span> <span>R$ {cartTotal.toFixed(2)}</span>
                         </div>
                       </div>
 
                       <div className="space-y-3 pt-2">
-                        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Dados de Entrega & Pagamento:</h3>
+                        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Dados do Pedido e Pagamento:</h3>
                         
                         <label className="bh-field-label">Nome completo</label>
                         <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Digite seu nome" className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-white text-sm bh-field" required />
                         <label className="bh-field-label">WhatsApp / telefone</label>
                         <input type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Ex.: (11) 99999-9999" className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-white text-sm bh-field" required />
                         
-                        <label className="bh-field-label">Endereço de entrega</label>
-                        <div className="flex gap-2">
-                          <input type="text" value={street} onChange={(e) => setStreet(e.target.value)} placeholder="Rua ou avenida" className="flex-1 bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-white text-sm bh-field" required />
-                          <input type="text" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Nº" className="w-24 bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 text-white text-center text-sm bh-field" required />
+                        <div className="grid grid-cols-2 gap-2">
+                          <button type="button" onClick={() => setCustomerOrderType('Entrega')} className={`py-3 rounded-xl text-xs font-black border ${customerOrderType==='Entrega'?'bg-amber-500 text-black border-amber-500':'bg-zinc-950 text-zinc-300 border-zinc-700'}`}>🛵 Entrega</button>
+                          <button type="button" onClick={() => setCustomerOrderType('Retirada')} className={`py-3 rounded-xl text-xs font-black border ${customerOrderType==='Retirada'?'bg-amber-500 text-black border-amber-500':'bg-zinc-950 text-zinc-300 border-zinc-700'}`}>🏪 Retirar no balcão</button>
                         </div>
-                        <label className="bh-field-label">Bairro</label>
-                        <input type="text" value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} placeholder="Digite seu bairro" className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-white text-sm bh-field" required />
-                        <label className="bh-field-label">Ponto de referência <span>(opcional)</span></label>
-                        <input type="text" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Ex.: perto da praça" className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-white text-sm bh-field" />
+                        {customerOrderType==='Entrega' ? <>
+                          <label className="bh-field-label">Endereço de entrega</label>
+                          <div className="flex gap-2">
+                            <input type="text" value={street} onChange={(e) => setStreet(e.target.value)} placeholder="Rua ou avenida" className="flex-1 bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-white text-sm bh-field" required />
+                            <input type="text" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Nº" className="w-24 bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 text-white text-center text-sm bh-field" required />
+                          </div>
+                          <label className="bh-field-label">Bairro</label>
+                          <input type="text" value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} placeholder="Digite seu bairro" className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-white text-sm bh-field" required />
+                          <label className="bh-field-label">Ponto de referência <span>(opcional)</span></label>
+                          <input type="text" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Ex.: perto da praça" className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-white text-sm bh-field" />
+                        </> : <p className="rounded-xl bg-zinc-950 border border-zinc-800 p-3 text-sm text-zinc-300">Seu pedido ficará marcado para retirada no balcão. Não será cobrada taxa de entrega.</p>}
+
+                        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 space-y-2">
+                          <label className="block text-xs font-black text-amber-500 uppercase">🎟️ Cupom de desconto</label>
+                          <div className="flex gap-2"><input value={couponCode} onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponValidation(null); setCouponDiscount(0); }} placeholder="Digite seu cupom" className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm"/><button type="button" onClick={validateCoupon} disabled={couponValidating || !couponCode.trim()} className="bg-amber-500 text-black px-3 rounded-xl text-xs font-black disabled:opacity-50">{couponValidating ? 'Validando…' : 'Aplicar'}</button></div>
+                          {couponValidation?.valid && <p className="text-[11px] text-green-400 font-bold">✅ Desconto validado: R$ {couponDiscount.toFixed(2)}</p>}
+                          {couponValidation && !couponValidation.valid && <p className="text-[11px] text-red-400 font-bold">❌ Cupom inválido, expirado ou indisponível.</p>}
+                        </div>
 
                         <div className="pt-2">
                           <label className="block text-xs font-bold text-zinc-400 uppercase mb-2">Forma de Pagamento (Obrigatório):</label>
@@ -1258,709 +1263,11 @@
             </div>
           )}
 
-          {view === 'pdv' && !userRole && (
-            <div className="fixed inset-0 z-[100] bg-zinc-950/95 flex items-center justify-center p-6">
-              <div className="w-full max-w-sm bg-zinc-900 border border-amber-500/30 rounded-3xl p-7 text-center shadow-2xl">
-                <div className="text-4xl mb-3">🔒</div>
-                <h2 className="text-white text-xl font-black uppercase">PDV bloqueado</h2>
-                <p className="text-zinc-400 text-sm mt-2 mb-6">A sessão foi encerrada. Entre novamente para acessar o PDV.</p>
-                <button onClick={handlePdvAccess} className="w-full bg-amber-500 text-black py-4 rounded-2xl font-black">Entrar no PDV</button>
-              </div>
-            </div>
-          )}
+          
 
-          {loginOpen && (
-            <div className="fixed inset-0 z-[110] bg-black/70 flex items-center justify-center p-6">
-              <form onSubmit={handlePdvLogin} className="w-full max-w-sm bg-white rounded-3xl p-6 text-zinc-900 shadow-2xl">
-                <h2 className="text-xl font-black mb-1">Entrar no PDV</h2>
-                <p className="text-xs text-zinc-500 mb-5">Use o usuário criado no Firebase Authentication.</p>
-                <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} placeholder="E-mail" autoComplete="username" required className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-4 py-3 mb-3 text-sm" />
-                <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="Senha" autoComplete="current-password" required className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-4 py-3 mb-2 text-sm" />
-                {loginError && <p className="text-red-600 text-xs font-bold mb-3">{loginError}</p>}
-                <button type="submit" className="w-full bg-amber-500 text-black py-3 rounded-xl font-black">Entrar</button>
-                <button type="button" onClick={() => { setLoginOpen(false); setView('pdv'); }} className="w-full text-zinc-500 py-3 text-sm font-bold">Cancelar</button>
-              </form>
-            </div>
-          )}
+          
 
-          {view === 'pdv' && (
-            <div className="bg-zinc-100 min-h-screen text-zinc-900 flex flex-col w-full max-w-md mx-auto shadow-2xl relative">
-              <header className="bg-zinc-900 pt-10 pb-6 px-6 rounded-b-[2rem] shadow-lg sticky top-0 z-20 flex justify-between items-center text-white">
-                <div>
-                  <h1 className="text-xl font-black uppercase leading-none">PDV Mobile</h1>
-                  <span className="text-[10px] text-amber-500 font-bold uppercase">Burguer House</span>
-                </div>
-                
-                <div className="flex flex-col items-end gap-2">
-                  <span className="text-[10px] bg-zinc-800 px-2 py-1 rounded text-zinc-400 font-bold border border-zinc-700 uppercase">
-                    Acesso: {userRole === 'admin' ? '👑 Admin' : '🧑‍🍳 Operador'}
-                  </span>
-                </div>
-              </header>
-
-              <main className="flex-1 overflow-y-auto pb-24">
-                {pdvTab === 'orders' && (
-                  <div className="p-4">
-                    <button onClick={() => { setCart([]); setManualOrderOpen(true); }} className="w-full mb-4 bg-zinc-900 text-white py-4 rounded-2xl font-black shadow-lg">➕ Novo pedido manual / telefone</button>
-                    <div className="flex bg-zinc-200 p-1 rounded-2xl mb-6">
-                      {['pendente', 'preparando', 'finalizado', 'cancelado'].map(tab => (
-                        <button key={tab} onClick={() => setOrderFilter(tab)} className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold uppercase ${orderFilter === tab ? (tab === 'cancelado' ? 'bg-red-500 text-white' : 'bg-amber-500 text-black') : 'text-zinc-500'}`}>
-                          {tab === 'pendente' ? 'Novos' : tab === 'preparando' ? 'Cozinha' : tab === 'finalizado' ? 'Prontos' : 'Cancels.'}
-                        </button>
-                      ))}
-                    </div>
-                    
-                    <div className="space-y-4">
-                      {pdvDisplayOrders.filter(o => o.status === orderFilter).map(order => (
-                        <div key={order.id} className="bg-white rounded-3xl p-5 shadow-sm border border-zinc-200 relative">
-                          {order.motoboy && order.status === 'finalizado' && (
-                             <div className="absolute top-0 right-0 bg-blue-100 text-blue-800 text-[10px] font-black uppercase px-3 py-1 rounded-bl-xl rounded-tr-3xl border-b border-l border-blue-200">
-                               🛵 {order.motoboy}
-                             </div>
-                          )}
-
-                          <div className="flex justify-between items-start mt-2">
-                            <h3 className="font-black text-lg">{order.customerName}</h3>
-                            <span className="bg-amber-100 text-amber-900 text-xs font-black px-2.5 py-1 rounded-full border border-amber-200">{order.paymentMethod || 'Pix'}</span>
-                          </div>
-                          {order.customerPhone && <p className="text-xs text-zinc-500 mt-1">📱 {order.customerPhone}</p>}
-                          {order.customerAddress && <p className="text-xs text-zinc-500 mt-1 leading-tight">📍 {order.customerAddress}</p>}
-                          
-                          <div className="bg-zinc-50 rounded-2xl p-4 my-4 space-y-1">
-                            {order.items.map((item, idx) => (
-                              <div key={idx} className="text-sm py-0.5">
-                                <span className="font-black mr-1">{item.quantity}x</span> {item.name}
-                                {item.addons && item.addons.length > 0 && <div className="text-xs text-zinc-500 pl-4">+ {item.addons.map(a => a.name).join(', ')}</div>}
-                                {item.note && <div className="text-xs font-bold text-red-600 pl-4">⚠️ Obs: {item.note}</div>}
-                              </div>
-                            ))}
-                            <div className="pt-2 mt-2 border-t border-zinc-200 text-xs text-zinc-600 space-y-1">
-                              <div className="flex justify-between"><span>Subtotal:</span> <span>R$ {(order.subtotal || (order.total - (order.deliveryFee || 0))).toFixed(2)}</span></div>
-                              <div className="flex justify-between"><span>Taxa Entrega:</span> <span>R$ {(order.deliveryFee || 0).toFixed(2)}</span></div>
-                              <div className="flex justify-between font-black text-sm text-zinc-900 pt-1"><span>Total:</span> <span>R$ {order.total.toFixed(2)}</span></div>
-                            </div>
-                            {order.status === 'cancelado' && (
-                              <div className="mt-3 bg-red-100 text-red-700 p-2 rounded-xl text-xs font-bold border border-red-200">
-                                🚫 Motivo: {order.cancelReason || 'Não informado'}
-                              </div>
-                            )}
-                          </div>
-                          
-                          <div className="flex gap-2">
-                            <button onClick={() => printOrder(order)} className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center text-xl" title="Imprimir">🖨️</button>
-                            
-                            {order.status !== 'cancelado' && (
-                              <button onClick={() => handleCancelOrder(order.id)} className="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center text-xl" title="Cancelar Pedido">🚫</button>
-                            )}
-                            
-                            {userRole === 'admin' && (
-                              <button onClick={() => handleDeleteOrder(order.id)} className="w-12 h-12 bg-zinc-100 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-2xl flex items-center justify-center text-xl transition-colors" title="Apagar Definitivamente (Limpa as Métricas)">🗑️</button>
-                            )}
-
-                            {order.status === 'pendente' && <button onClick={() => handleUpdateOrderStatus(order.id, 'preparando')} className="flex-1 bg-amber-500 font-black rounded-2xl">Preparar</button>}
-                            
-                            {order.status === 'preparando' && (
-                              <button onClick={() => handleDispatchClick(order)} className="flex-1 bg-[#25D366] text-white font-black rounded-2xl text-sm leading-tight">
-                                🛵 Despachar
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                      {pdvDisplayOrders.filter(o => o.status === orderFilter).length === 0 && (
-                        <div className="text-center text-zinc-400 mt-10">Nenhum pedido nesta aba hoje.</div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {manualOrderOpen && (
-                  <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white w-full max-w-md max-h-[92vh] overflow-y-auto rounded-t-[2rem] p-5 text-zinc-900">
-                      <div className="flex justify-between items-center mb-4">
-                        <div><h3 className="font-black text-xl">Novo pedido manual</h3><p className="text-xs text-zinc-500">Pedido recebido por ligação</p></div>
-                        <button onClick={() => setManualOrderOpen(false)} className="text-red-500 font-black text-xl">✕</button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 mb-3">
-                        <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Nome do cliente" className="col-span-2 bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-3 text-sm" />
-                        <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="Telefone" className="col-span-2 bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-3 text-sm" />
-                        <select value={manualOrderType} onChange={e => setManualOrderType(e.target.value)} className="bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-3 text-sm"><option>Entrega</option><option>Retirada</option></select>
-                        <select value={manualPaymentMethod} onChange={e => setManualPaymentMethod(e.target.value)} className="bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-3 text-sm"><option>Pix</option><option>Cartão</option><option>Dinheiro</option></select>
-                      </div>
-                      {manualOrderType === 'Entrega' && <div className="grid grid-cols-2 gap-2 mb-4">
-                        <input value={street} onChange={e => setStreet(e.target.value)} placeholder="Rua" className="col-span-2 bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-3 text-sm" />
-                        <input value={number} onChange={e => setNumber(e.target.value)} placeholder="Número" className="bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-3 text-sm" />
-                        <input value={neighborhood} onChange={e => setNeighborhood(e.target.value)} placeholder="Bairro" className="bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-3 text-sm" />
-                        <input value={reference} onChange={e => setReference(e.target.value)} placeholder="Referência (opcional)" className="col-span-2 bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-3 text-sm" />
-                      </div>}
-                      <h4 className="font-black text-sm mb-2">Produtos</h4>
-                      <div className="grid grid-cols-2 gap-2 mb-4">{products.filter(p => !p.paused).map(product => <button key={product.id} onClick={() => addProductToManualOrder(product)} className="text-left bg-amber-50 border border-amber-200 rounded-xl p-3"><span className="block font-bold text-xs">{product.name}</span><span className="text-xs font-black">R$ {parseFloat(product.price).toFixed(2)}</span></button>)}</div>
-                      {cart.length > 0 && <div className="bg-zinc-100 rounded-xl p-3 mb-4 space-y-2">{cart.map(item => <div key={item.id} className="flex justify-between text-sm"><span><b>{item.quantity}x</b> {item.name}</span><span className="font-bold">R$ {(item.price * item.quantity).toFixed(2)}</span></div>)}<div className="border-t border-zinc-300 pt-2 flex justify-between font-black">Total <span>R$ {(itemsTotal + (manualOrderType === 'Entrega' ? deliveryFee : 0)).toFixed(2)}</span></div></div>}
-                      <button onClick={handleCreateManualOrder} className="w-full bg-amber-500 text-black py-4 rounded-2xl font-black">Salvar pedido no PDV</button>
-                    </div>
-                  </div>
-                )}
-
-                {dispatchingOrder && (
-                   <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-                     <div className="bg-white w-full max-w-md rounded-t-[2rem] p-6 relative z-10 flex flex-col">
-                        <h3 className="font-black text-xl mb-1">Despachar Pedido</h3>
-                        <p className="text-xs text-zinc-500 mb-4">Quem vai entregar o pedido de <strong className="text-black">{dispatchingOrder.customerName}</strong>?</p>
-                        
-                        <div className="space-y-2 max-h-60 overflow-y-auto">
-                          {motoboys.map(mb => (
-                             <button key={mb} onClick={() => { handleFinishAndNotify(dispatchingOrder, mb); setDispatchingOrder(null); }} className="w-full bg-blue-50 hover:bg-blue-100 py-4 rounded-xl font-bold text-sm text-blue-900 border border-blue-200 transition-colors">
-                                🛵 Entregador: {mb}
-                             </button>
-                          ))}
-                          <button onClick={() => { handleFinishAndNotify(dispatchingOrder, null); setDispatchingOrder(null); }} className="w-full bg-zinc-900 text-white py-4 rounded-xl font-black text-sm mt-2">
-                             Retirada / Sem Entregador
-                          </button>
-                          <button onClick={() => setDispatchingOrder(null)} className="w-full text-red-500 py-3 font-bold text-sm mt-2 uppercase tracking-wider">Cancelar</button>
-                        </div>
-                     </div>
-                   </div>
-                )}
-
-                {pdvTab === 'products' && (
-                  <div className="p-4">
-                    {products.map(product => (
-                      <div key={product.id} className={`bg-white p-3 rounded-2xl flex gap-4 mb-3 border items-center ${product.paused ? 'border-amber-400 bg-amber-50/50 opacity-75' : 'border-zinc-200'}`}>
-                        <div className="w-12 h-12 shrink-0 rounded-xl bg-zinc-100 flex items-center justify-center overflow-hidden">
-                          {product.imageUrl ? <img src={product.imageUrl} className="w-full h-full object-cover" /> : <span>🍔</span>}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-bold text-sm">{product.name}</h4>
-                            {product.paused && <span className="bg-amber-200 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Pausado</span>}
-                          </div>
-                          <p className="text-sm font-black mt-1">R$ {parseFloat(product.price).toFixed(2)}</p>
-                        </div>
-                        
-                        <button onClick={() => handleTogglePause(product)} className={`px-3 py-2 rounded-xl text-xs font-bold transition-colors ${product.paused ? 'bg-amber-500 text-black shadow-sm' : 'bg-zinc-200 text-zinc-700'}`}>
-                          {product.paused ? '▶️ Ativar' : '⏸️ Pausar'}
-                        </button>
-                        
-                        {userRole === 'admin' && (
-                          <button onClick={() => handleDeleteProduct(product.id)} className="p-3 bg-red-50 text-red-500 rounded-xl">🗑️</button>
-                        )}
-                      </div>
-                    ))}
-                    {products.length === 0 && <div className="text-center text-zinc-400 mt-10">Nenhum produto cadastrado.</div>}
-                    
-                    {userRole === 'admin' && (
-                      <button onClick={() => setIsAddProductModalOpen(true)} className="fixed bottom-24 right-6 w-14 h-14 bg-zinc-900 text-white rounded-full text-2xl flex items-center justify-center shadow-lg">➕</button>
-                    )}
-                  </div>
-                )}
-
-                {pdvTab === 'clients' && userRole === 'admin' && (
-                  <div className="p-4 space-y-4">
-                    <div className="bg-white rounded-3xl p-5 shadow-sm border border-zinc-200 space-y-3">
-                      <h3 className="font-black text-base flex items-center gap-2">📢 Campanhas de WhatsApp</h3>
-                      <p className="text-xs text-zinc-500 leading-tight">Escreva sua mensagem abaixo. A tag <code className="bg-zinc-100 text-amber-600 px-1 py-0.5 rounded font-mono font-bold">[Nome]</code> será substituída automaticamente pelo nome de cada cliente ao clicar em chamar.</p>
-                      
-                      <textarea 
-                        value={promoTemplate} 
-                        onChange={(e) => setPromoTemplate(e.target.value)} 
-                        className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl p-3 text-xs text-zinc-800 h-24 focus:outline-none focus:border-amber-500 font-sans" 
-                      />
-
-                      <div className="flex bg-zinc-100 p-1 rounded-2xl">
-                        <button onClick={() => setLeadFilter('all')} className={`flex-1 py-2 rounded-xl text-xs font-bold ${leadFilter === 'all' ? 'bg-amber-500 text-black' : 'text-zinc-500'}`}>Todos ({uniqueClients.length})</button>
-                        <button onClick={() => setLeadFilter('loyal')} className={`flex-1 py-2 rounded-xl text-xs font-bold ${leadFilter === 'loyal' ? 'bg-amber-500 text-black' : 'text-zinc-500'}`}>Fiéis (2+)</button>
-                        <button onClick={() => setLeadFilter('churned')} className={`flex-1 py-2 rounded-xl text-xs font-bold ${leadFilter === 'churned' ? 'bg-red-500 text-white' : 'text-zinc-500'}`}>Sumidos (&gt;15d)</button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      {displayedClients.map(client => {
-                        const customMsg = promoTemplate.replace(/\[Nome\]/g, client.name);
-                        const cleanPhone = client.phone.replace(/\D/g, '');
-                        const waLink = `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(customMsg)}`;
-                        
-                        return (
-                          <div key={client.phone} className="bg-white p-4 rounded-3xl border border-zinc-200 shadow-sm flex flex-col gap-2">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h4 className="font-black text-base text-zinc-900">{client.name}</h4>
-                                <p className="text-xs text-zinc-500">📱 {client.phone}</p>
-                              </div>
-                              <div className="flex flex-col items-end">
-                                <span className="bg-amber-100 text-amber-900 font-black text-[10px] px-2.5 py-0.5 rounded-full mb-1">{client.ordersCount} {client.ordersCount === 1 ? 'pedido' : 'pedidos'}</span>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${client.daysAgo >= 15 ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-600'}`}>
-                                  {client.daysAgo === 0 ? 'Pediu hoje' : `Sumido há ${client.daysAgo}d`}
-                                </span>
-                              </div>
-                            </div>
-
-                            <a 
-                              href={waLink} 
-                              target="_blank" 
-                              className="w-full bg-[#25D366] text-white py-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm mt-1"
-                            >
-                              💬 Enviar Promoção no WhatsApp
-                            </a>
-                          </div>
-                        );
-                      })}
-                      {displayedClients.length === 0 && <div className="text-center text-zinc-400 py-10 text-xs">Nenhum cliente encontrado neste filtro.</div>}
-                    </div>
-                  </div>
-                )}
-
-                {pdvTab === 'cash' && userRole === 'admin' && (
-                  <div className="p-4 space-y-4">
-                    {!currentCash ? (
-                      <div className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-200 space-y-4">
-                        <div className="text-center py-4">
-                          <span className="text-4xl">🔒</span>
-                          <h3 className="font-black text-xl mt-2">O Caixa está Fechado</h3>
-                          <p className="text-xs text-zinc-500 mt-1">Abra o caixa informando o troco inicial para começar a registrar as vendas.</p>
-                        </div>
-
-                        <form onSubmit={handleOpenCash} className="space-y-4">
-                          <div>
-                            <label className="block text-xs font-bold text-zinc-600 uppercase mb-1">Troco Inicial (Fundo de Caixa em Dinheiro)</label>
-                            <input 
-                              type="number" 
-                              step="0.50" 
-                              value={openingChangeInput} 
-                              onChange={(e) => setOpeningChangeInput(e.target.value)} 
-                              className="w-full bg-zinc-50 border border-zinc-300 rounded-2xl px-4 py-3 font-black text-lg text-center" 
-                              placeholder="Ex: 50.00" 
-                              required 
-                            />
-                          </div>
-                          <button type="submit" className="w-full bg-[#25D366] text-white font-black py-4 rounded-2xl shadow-md text-base">
-                            🔓 Abrir Caixa Agora
-                          </button>
-                        </form>
-
-                        <div className="pt-6 border-t border-zinc-200">
-                          <div className="bg-zinc-900 text-white p-4 rounded-2xl mb-4">
-                            <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Faturamento Acumulado (Mês)</span>
-                            <h2 className="text-2xl font-black text-amber-500 mt-0.5">R$ {monthlyRevenue.toFixed(2)}</h2>
-                            <p className="text-[11px] text-zinc-400">{closedCashRegisters.length} caixas fechados registrados</p>
-                          </div>
-
-                          <h4 className="font-bold text-xs uppercase text-zinc-500 mb-2">Histórico de Caixas Fechados:</h4>
-                          <div className="space-y-2 max-h-48 overflow-y-auto">
-                            {closedCashRegisters.map(c => (
-                              <div key={c.id} className="bg-zinc-50 p-3 rounded-xl border border-zinc-200 flex justify-between items-center text-xs">
-                                <div>
-                                  <p className="font-bold">{new Date(c.openedAt).toLocaleDateString('pt-BR')}</p>
-                                  <span className="text-zinc-500">Troco: R$ {c.openingChange.toFixed(2)}</span>
-                                </div>
-                                <span className="font-black text-amber-600">R$ {(c.totalSales || 0).toFixed(2)}</span>
-                              </div>
-                            ))}
-                            {closedCashRegisters.length === 0 && <p className="text-xs text-zinc-400 text-center py-2">Nenhum histórico anterior.</p>}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-200 space-y-4">
-                        <div className="flex justify-between items-center bg-green-50 border border-green-200 p-3 rounded-2xl">
-                          <div className="flex items-center gap-2">
-                            <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
-                            <span className="font-black text-xs text-green-800 uppercase">Caixa Aberto</span>
-                          </div>
-                          <span className="text-xs text-green-700 font-bold">{new Date(currentCash.openedAt).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span>
-                        </div>
-
-                        <div className="bg-zinc-900 text-white p-5 rounded-2xl shadow-md space-y-1">
-                          <span className="text-xs text-zinc-400 uppercase font-bold tracking-wider">Faturamento da Sessão Atual</span>
-                          <h2 className="text-3xl font-black text-amber-500">R$ {sessionTotal.toFixed(2)}</h2>
-                          <p className="text-xs text-zinc-400">{activeSessionOrdersValid.length} pedidos finalizados (exclui cancelados)</p>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="bg-zinc-50 p-3 rounded-2xl border border-zinc-200 text-center">
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase">Pix</span>
-                            <p className="text-sm font-black text-zinc-900 mt-1">R$ {sessionPix.toFixed(2)}</p>
-                          </div>
-                          <div className="bg-zinc-50 p-3 rounded-2xl border border-zinc-200 text-center">
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase">Cartão</span>
-                            <p className="text-sm font-black text-zinc-900 mt-1">R$ {sessionCard.toFixed(2)}</p>
-                          </div>
-                          <div className="bg-zinc-50 p-3 rounded-2xl border border-zinc-200 text-center">
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase">Dinheiro</span>
-                            <p className="text-sm font-black text-zinc-900 mt-1">R$ {sessionCash.toFixed(2)}</p>
-                          </div>
-                        </div>
-
-                        <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-200 space-y-1.5 text-xs">
-                          <div className="flex justify-between"><span>Troco Inicial (Fundo):</span> <span className="font-bold">R$ {currentCash.openingChange.toFixed(2)}</span></div>
-                          <div className="flex justify-between"><span>Dinheiro em Vendas:</span> <span className="font-bold">R$ {sessionCash.toFixed(2)}</span></div>
-                          <div className="flex justify-between text-red-600"><span>(-) Total de Retiradas:</span> <span className="font-bold">- R$ {totalWithdrawals.toFixed(2)}</span></div>
-                          <div className="flex justify-between font-black text-sm text-zinc-900 pt-2 border-t border-zinc-200">
-                            <span>Total Esperado na Gaveta:</span> <span className="text-amber-600">R$ {expectedCashInDrawer.toFixed(2)}</span>
-                          </div>
-                        </div>
-
-                        <div className="bg-blue-50 p-4 rounded-2xl border border-blue-200 space-y-3">
-                          <h4 className="font-bold text-xs uppercase text-blue-900">🛵 Acerto de Dinheiro com Motoboys:</h4>
-                          {Object.keys(motoboyStats).length === 0 ? (
-                             <p className="text-xs text-blue-400">Nenhuma entrega despachada para motoboys hoje.</p>
-                          ) : (
-                             <div className="space-y-3">
-                               {Object.entries(motoboyStats).map(([mb, data]) => (
-                                  <div key={mb} className="bg-white p-3 rounded-xl border border-blue-100 text-xs space-y-1">
-                                    <div className="flex justify-between items-center font-black text-blue-900 text-sm">
-                                      <span>{mb}</span>
-                                      <span className="text-zinc-500 text-xs">{data.count} entregas</span>
-                                    </div>
-                                    <div className="flex justify-between text-zinc-600">
-                                      <span>Dinheiro recolhido (trazer p/ caixa):</span>
-                                      <span className="font-bold text-zinc-900">R$ {data.cashCollected.toFixed(2)}</span>
-                                    </div>
-                                    <div className="flex justify-between text-zinc-600">
-                                      <span>Taxas devidas ao motoboy:</span>
-                                      <span className="font-bold text-blue-700">- R$ {data.fees.toFixed(2)}</span>
-                                    </div>
-                                    <div className="flex justify-between pt-1 border-t border-zinc-100 font-bold text-xs">
-                                      <span>Balanço (Acerto Final):</span>
-                                      <span className="text-green-700">Trazer líquidas R$ {(data.cashCollected - data.fees).toFixed(2)}</span>
-                                    </div>
-                                  </div>
-                               ))}
-                             </div>
-                          )}
-                        </div>
-
-                        <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-200 space-y-3">
-                          <h4 className="font-bold text-xs uppercase text-zinc-700">💸 Registrar Retirada (Sangria / Despesa):</h4>
-                          <form onSubmit={handleAddWithdrawal} className="space-y-2">
-                            <input 
-                              type="text" 
-                              value={withdrawalReason} 
-                              onChange={(e) => setWithdrawalReason(e.target.value)} 
-                              placeholder="Motivo (Ex: Gasolina moto, Mercado)" 
-                              className="w-full bg-white border border-zinc-300 rounded-xl px-3 py-2.5 text-xs text-zinc-800"
-                              required 
-                            />
-                            <div className="flex gap-2">
-                              <input 
-                                type="number" 
-                                step="0.50" 
-                                value={withdrawalAmount} 
-                                onChange={(e) => setWithdrawalAmount(e.target.value)} 
-                                placeholder="Valor (R$)" 
-                                className="flex-1 bg-white border border-zinc-300 rounded-xl px-3 py-2.5 text-xs text-zinc-800 font-bold"
-                                required 
-                              />
-                              <button type="submit" className="bg-zinc-900 text-white font-black px-4 py-2.5 rounded-xl text-xs">Retirar</button>
-                            </div>
-                          </form>
-
-                          {currentCash.withdrawals && currentCash.withdrawals.length > 0 && (
-                            <div className="space-y-1.5 pt-2 border-t border-zinc-200 mt-2">
-                              <span className="text-[10px] font-bold text-zinc-500 uppercase">Retiradas feitas hoje:</span>
-                              {currentCash.withdrawals.map(w => (
-                                <div key={w.id} className="flex justify-between items-center bg-white px-3 py-2 rounded-xl border border-zinc-200 text-xs">
-                                  <div>
-                                    <span className="font-bold text-zinc-800">{w.reason}</span>
-                                    <span className="text-[10px] text-zinc-400 block">{new Date(w.createdAt).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-black text-red-600">- R$ {w.amount.toFixed(2)}</span>
-                                    <button type="button" onClick={() => handleDeleteWithdrawal(w.id)} className="text-red-400 hover:text-red-600 text-sm">✖️</button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <button onClick={handleCloseCash} className="w-full bg-red-600 text-white font-black py-4 rounded-2xl shadow-md text-sm mt-4">
-                          🔒 Fechar Caixa do Dia
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {pdvTab === 'reports' && userRole === 'admin' && (
-                  <div className="p-4 space-y-6">
-                    <div className="bg-white rounded-3xl p-5 shadow-sm border border-zinc-200 space-y-3">
-                      <h3 className="font-black text-base flex items-center gap-2">📅 Filtrar por Período</h3>
-                      <p className="text-xs text-zinc-500">Selecione a data inicial e final para analisar o desempenho.</p>
-                      
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[10px] font-bold text-zinc-600 uppercase mb-1">De:</label>
-                          <input 
-                            type="date" 
-                            value={analysisStartDate} 
-                            onChange={(e) => setAnalysisStartDate(e.target.value)} 
-                            className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-xs font-bold text-zinc-800" 
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-zinc-600 uppercase mb-1">Até:</label>
-                          <input 
-                            type="date" 
-                            value={analysisEndDate} 
-                            onChange={(e) => setAnalysisEndDate(e.target.value)} 
-                            className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-xs font-bold text-zinc-800" 
-                          />
-                        </div>
-                      </div>
-
-                      {(analysisStartDate || analysisEndDate) && (
-                        <button 
-                          onClick={() => { setAnalysisStartDate(""); setAnalysisEndDate(""); }} 
-                          className="w-full bg-zinc-200 text-zinc-700 py-2 rounded-xl text-xs font-black mt-1"
-                        >
-                          Limpar Filtro (Ver Tudo)
-                        </button>
-                      )}
-
-                      <div className="bg-zinc-900 text-white p-4 rounded-2xl mt-3">
-                        <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Faturamento Líquido</span>
-                        <h2 className="text-2xl font-black text-amber-500 mt-0.5">R$ {periodTotalRevenue.toFixed(2)}</h2>
-                        <p className="text-[11px] text-zinc-400">{validOrdersForAnalysis.length} pedidos validados</p>
-                      </div>
-
-                      {periodCanceledCount > 0 && (
-                        <div className="bg-red-50 border border-red-200 p-3 rounded-2xl mt-2 flex justify-between items-center">
-                          <div>
-                            <span className="text-[10px] font-bold text-red-600 uppercase">Perdas c/ Cancelamentos</span>
-                            <p className="text-xs text-red-800">{periodCanceledCount} pedidos cancelados</p>
-                          </div>
-                          <span className="font-black text-red-600">- R$ {periodCanceledRevenue.toFixed(2)}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-200 space-y-3">
-                      <h3 className="font-black text-base flex items-center gap-2">🏆 Ranking de Produtos</h3>
-                      
-                      <div className="space-y-2 mt-2 max-h-60 overflow-y-auto">
-                        {sortedGlobalProducts.map(([name, stats], idx) => (
-                          <div key={name} className="flex justify-between items-center bg-zinc-50 px-4 py-3 rounded-2xl border border-zinc-200 text-xs">
-                            <div className="flex items-center gap-3">
-                              <span className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-[10px] ${idx === 0 ? 'bg-amber-500 text-black' : idx === 1 ? 'bg-zinc-300 text-zinc-800' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-zinc-200 text-zinc-600'}`}>
-                                {idx + 1}º
-                              </span>
-                              <div>
-                                <h4 className="font-bold text-zinc-900 text-sm">{name}</h4>
-                                <span className="text-zinc-500">Faturamento: R$ {stats.revenue.toFixed(2)}</span>
-                              </div>
-                            </div>
-                            <span className="font-black bg-zinc-200 text-zinc-800 px-3 py-1 rounded-full text-xs">{stats.qty} un</span>
-                          </div>
-                        ))}
-                        {sortedGlobalProducts.length === 0 && <p className="text-xs text-zinc-400 text-center py-6">Nenhum produto validado neste período.</p>}
-                      </div>
-                    </div>
-
-                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-200 space-y-3">
-                      <h3 className="font-black text-base flex items-center gap-2">📊 Desempenho por Categoria</h3>
-                      
-                      <div className="space-y-2 mt-2">
-                        {sortedCategories.map(([cat, stats]) => (
-                          <div key={cat} className="flex justify-between items-center bg-zinc-50 px-4 py-3 rounded-2xl border border-zinc-200 text-xs">
-                            <span className="font-bold text-zinc-900 text-sm">{cat}</span>
-                            <div className="text-right">
-                              <span className="font-black text-amber-600 block text-sm">R$ {stats.revenue.toFixed(2)}</span>
-                              <span className="text-zinc-500">{stats.qty} itens vendidos</span>
-                            </div>
-                          </div>
-                        ))}
-                        {sortedCategories.length === 0 && <p className="text-xs text-zinc-400 text-center py-6">Nenhuma venda registrada.</p>}
-                      </div>
-                    </div>
-
-                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-200 space-y-3">
-                      <h3 className="font-black text-base flex items-center gap-2">📅 Sazonalidade (Mês a Mês)</h3>
-                      
-                      <div className="space-y-2 mt-2">
-                        {sortedSeasonality.map(([monthName, data]) => (
-                          <div key={monthName} className="flex justify-between items-center bg-zinc-50 px-4 py-3 rounded-2xl border border-zinc-200 text-xs">
-                            <div>
-                              <h4 className="font-black text-zinc-900 capitalize text-sm">{monthName}</h4>
-                              <span className="text-zinc-500">{data.count} pedidos validos</span>
-                            </div>
-                            <span className="font-black text-green-700 text-base">R$ {data.revenue.toFixed(2)}</span>
-                          </div>
-                        ))}
-                        {sortedSeasonality.length === 0 && <p className="text-xs text-zinc-400 text-center py-6">Nenhum dado mensal validado.</p>}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {pdvTab === 'config' && userRole === 'admin' && (
-                  <div className="p-4 space-y-6">
-                    
-                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-200">
-                      <h3 className="font-black text-xl mb-2">🏪 Status da Loja (Delivery)</h3>
-                      <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200 rounded-2xl p-4">
-                        <div>
-                          <span className={`w-3 h-3 inline-block rounded-full mr-2 ${storeOpen ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                          <span className="font-bold text-zinc-800">{storeOpen ? 'Loja Aberta' : 'Loja Fechada'}</span>
-                        </div>
-                        <button type="button" onClick={handleToggleStore} className={`px-4 py-2 rounded-xl text-xs font-black text-white shadow-sm transition-transform active:scale-95 ${storeOpen ? 'bg-red-600' : 'bg-green-600'}`}>
-                          {storeOpen ? 'Pausar Delivery' : 'Abrir Delivery'}
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-zinc-500 mt-2 leading-tight">Quando fechada, os clientes podem ver o cardápio, mas o botão de enviar pedido fica bloqueado.</p>
-                    </div>
-
-                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-200">
-                      <h3 className="font-black text-xl mb-2">⚙️ Configurações Gerais</h3>
-                      
-                      <form onSubmit={handleSaveConfig} className="space-y-4">
-                        <div>
-                          <label className="block text-xs font-bold text-zinc-600 uppercase mb-1">Taxa de Entrega (R$)</label>
-                          <input type="number" step="0.50" value={feeInput} onChange={(e) => setFeeInput(e.target.value)} className="w-full bg-zinc-50 border border-zinc-300 rounded-2xl px-4 py-3 font-bold text-base" required />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-zinc-600 uppercase mb-1">Chave Pix (Copia e Cola)</label>
-                          <textarea value={pixInput} onChange={(e) => setPixInput(e.target.value)} className="w-full bg-zinc-50 border border-zinc-300 rounded-2xl px-4 py-3 font-mono text-xs h-14" required />
-                        </div>
-                        
-                        <div>
-                          <label className="block text-xs font-bold text-zinc-600 uppercase mb-1">Mensagem de "Saiu para Entrega" (WhatsApp)</label>
-                          <textarea value={dispatchMsgInput} onChange={(e) => setDispatchMsgInput(e.target.value)} className="w-full bg-zinc-50 border border-zinc-300 rounded-2xl px-4 py-3 text-xs h-20 text-zinc-800" required />
-                          <p className="text-[10px] text-zinc-500 mt-1">Use a tag <strong>[Nome]</strong> para incluir o nome do cliente automaticamente.</p>
-                        </div>
-
-                        <div className="pt-4 border-t border-zinc-200">
-                           <h4 className="font-black text-sm text-zinc-800 flex items-center gap-2">🔐 Controle de Acesso</h4>
-                           <p className="text-[10px] text-zinc-500 leading-tight mt-2">O acesso agora usa o Firebase Authentication. As senhas não são mais armazenadas nas configurações da loja.</p>
-                        </div>
-
-                        <button type="submit" className="w-full bg-zinc-900 text-white font-black py-3 rounded-2xl shadow-md">Salvar Alterações</button>
-                      </form>
-                    </div>
-
-                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-200">
-                      <h3 className="font-black text-xl mb-2">🛵 Equipe de Entregadores</h3>
-                      <p className="text-xs text-zinc-500 mb-4">Cadastre os motoboys para despachar pedidos e gerenciar o acerto de taxas no caixa.</p>
-                      <form onSubmit={handleAddMotoboy} className="flex gap-2 mb-4">
-                        <input type="text" value={newMotoboy} onChange={(e) => setNewMotoboy(e.target.value)} placeholder="Nome do Motoboy" className="flex-1 bg-zinc-50 border border-zinc-300 rounded-xl px-4 py-3 text-sm" required />
-                        <button type="submit" className="bg-zinc-900 text-white font-black px-4 py-3 rounded-xl text-sm">Adicionar</button>
-                      </form>
-                      <div className="space-y-2">
-                        {motoboys.map(mb => (
-                          <div key={mb} className="flex justify-between items-center bg-zinc-50 p-3 rounded-2xl border border-zinc-200 text-sm">
-                            <span className="font-bold text-zinc-800">{mb}</span>
-                            <button onClick={() => handleDeleteMotoboy(mb)} className="text-red-500 text-base px-2">🗑️</button>
-                          </div>
-                        ))}
-                        {motoboys.length === 0 && <p className="text-xs text-zinc-400 text-center py-2">Nenhum entregador cadastrado.</p>}
-                      </div>
-                    </div>
-
-                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-200">
-                      <h3 className="font-black text-xl mb-2">➕ Gerenciar Adicionais</h3>
-                      <form onSubmit={handleAddAddon} className="space-y-3 mb-4">
-                        <input type="text" value={newAddonName} onChange={(e) => setNewAddonName(e.target.value)} placeholder="Nome (Ex: Bacon Extra)" className="w-full bg-zinc-50 border border-zinc-300 rounded-2xl px-4 py-3 text-sm" required />
-                        <input type="number" step="0.50" value={newAddonPrice} onChange={(e) => setNewAddonPrice(e.target.value)} placeholder="Preço (Ex: 3.00)" className="w-full bg-zinc-50 border border-zinc-300 rounded-2xl px-4 py-3 text-sm" required />
-                        <button type="submit" className="w-full bg-zinc-900 text-white font-black py-3 rounded-2xl text-sm">Adicionar Adicional</button>
-                      </form>
-
-                      <div className="space-y-2">
-                        {addons.map(addon => (
-                          <div key={addon.id} className="flex justify-between items-center bg-zinc-50 p-3 rounded-2xl border border-zinc-200 text-sm">
-                            <span className="font-bold text-zinc-800">{addon.name} (+R$ {addon.price.toFixed(2)})</span>
-                            <button onClick={() => handleDeleteAddon(addon.id)} className="text-red-500 text-base px-2">🗑️</button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-200">
-                      <h3 className="font-black text-xl mb-2">📂 Categorias</h3>
-                      <div className="space-y-2 mt-2">
-                        {customCategories.map(cat => (
-                          <div key={cat} className="flex justify-between items-center bg-zinc-50 p-3 rounded-2xl border border-zinc-200 text-sm">
-                            <span className="font-bold text-zinc-800">{cat}</span>
-                            <button onClick={() => handleDeleteCategory(cat)} className="text-red-500 text-base px-2">🗑️</button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </main>
-
-              {isAddProductModalOpen && userRole === 'admin' && (
-                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60">
-                  <div className="bg-white w-full max-w-md rounded-t-[2rem] p-6 relative z-10 h-[85vh] flex flex-col">
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="font-black text-2xl">Novo Produto</h3>
-                      <button onClick={() => setIsAddProductModalOpen(false)}>✖️</button>
-                    </div>
-                    <form className="flex-1 overflow-y-auto space-y-4">
-                      <input required type="text" value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl p-4 text-sm" placeholder="Nome do Produto" />
-                      
-                      <div className="flex gap-2">
-                          <select value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value})} className="flex-1 bg-zinc-50 border border-zinc-200 rounded-2xl p-4 text-sm">
-                            {customCategories.length === 0 && <option value="">Sem categoria</option>}
-                            {customCategories.map(cat => (<option key={cat} value={cat}>{cat}</option>))}
-                          </select>
-                          <button type="button" onClick={handleQuickAddCategory} className="bg-amber-500 text-zinc-950 font-black px-4 rounded-2xl text-xs whitespace-nowrap">➕ Nova</button>
-                      </div>
-
-                      <input required type="number" step="0.50" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: e.target.value})} className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl p-4 text-sm" placeholder="Preço (Ex: 35.00)" />
-                      
-                      <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 space-y-3">
-                        <label className="block text-xs font-bold text-zinc-600 uppercase">Foto do Produto:</label>
-                        <div className="flex items-center gap-4">
-                          <div className="w-20 h-20 rounded-xl bg-zinc-200 flex items-center justify-center overflow-hidden shrink-0 border border-zinc-300">
-                            {newProduct.imageUrl ? (
-                              <img src={newProduct.imageUrl} className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="text-2xl">🍔</span>
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <input 
-                              type="file" 
-                              accept="image/*" 
-                              id="cameraInput" 
-                              onChange={handleImageUpload} 
-                              className="hidden" 
-                            />
-                            <label 
-                              htmlFor="cameraInput" 
-                              className="w-full bg-zinc-900 text-white py-3 px-4 rounded-xl text-xs font-black flex items-center justify-center gap-2 cursor-pointer shadow-sm"
-                            >
-                              📷 Tirar Foto / Galeria
-                            </label>
-                            <p className="text-[10px] text-zinc-400 mt-1.5">Escolha da galeria do celular ou abra a câmera para fotografar na hora.</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <textarea value={newProduct.description} onChange={e => setNewProduct({...newProduct, description: e.target.value})} className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl p-4 h-24 text-sm" placeholder="Descrição / Ingredientes"></textarea>
-                    </form>
-                    <button onClick={handleAddProduct} className="w-full bg-zinc-900 text-white font-black py-4 rounded-2xl mt-4">Salvar Produto</button>
-                  </div>
-                </div>
-              )}
-
-              <nav className="fixed bottom-0 w-full max-w-md bg-white border-t border-zinc-200 z-30">
-                <div className="flex justify-around p-2">
-                  <button onClick={() => setPdvTab('orders')} className={`font-bold p-1 text-[11px] ${pdvTab === 'orders' ? 'text-amber-500' : 'text-zinc-400'}`}>Pedidos</button>
-                  <button onClick={() => setPdvTab('products')} className={`font-bold p-1 text-[11px] ${pdvTab === 'products' ? 'text-amber-500' : 'text-zinc-400'}`}>Cardápio</button>
-                  
-                  {userRole === 'admin' && (
-                    <>
-                      <button onClick={() => setPdvTab('clients')} className={`font-bold p-1 text-[11px] ${pdvTab === 'clients' ? 'text-amber-500' : 'text-zinc-400'}`}>Clientes</button>
-                      <button onClick={() => setPdvTab('cash')} className={`font-bold p-1 text-[11px] ${pdvTab === 'cash' ? 'text-amber-500' : 'text-zinc-400'}`}>Caixa</button>
-                      <button onClick={() => setPdvTab('reports')} className={`font-bold p-1 text-[11px] ${pdvTab === 'reports' ? 'text-amber-500' : 'text-zinc-400'}`}>Análise</button>
-                      <button onClick={() => setPdvTab('config')} className={`font-bold p-1 text-[11px] ${pdvTab === 'config' ? 'text-amber-500' : 'text-zinc-400'}`}>Ajustes</button>
-                    </>
-                  )}
-                </div>
-              </nav>
-            </div>
-          )}
+          
         </div>
       );
     }
