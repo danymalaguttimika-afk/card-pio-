@@ -118,6 +118,7 @@
     };
 
     function MainApp() {
+      const isPickupOrder = (order) => { const norm = value => String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); const type=norm(order?.orderType||order?.deliveryType||order?.type),address=norm(order?.customerAddress||order?.address); return order?.isPickup===true||/retirada|pickup|balcao/.test(type)||/retirada no balcao|retirada no local/.test(address); };
       const [view] = useState('menu');
       const [userRole, setUserRole] = useState(null);
 
@@ -945,7 +946,7 @@
                 <p className="text-sm font-black text-amber-500 mt-0.5">
                   {trackedOrder.status === 'pendente' && '📝 Aguardando Confirmação'}
                   {trackedOrder.status === 'preparando' && '🍳 Sendo Preparado na Cozinha'}
-                  {trackedOrder.status === 'finalizado' && '🛵 Saiu para Entrega'}
+                  {trackedOrder.status === 'finalizado' && (isPickupOrder(trackedOrder) ? '✅ Pronto para retirada no balcão' : '🛵 Saiu para entrega')}
                   {trackedOrder.status === 'cancelado' && '🚫 Pedido Cancelado'}
                 </p>
                 {trackedOrder.status !== 'finalizado' && trackedOrder.status !== 'cancelado' && (
@@ -961,7 +962,7 @@
                onClick={() => setShowTracker(true)} 
                className="fixed bottom-24 right-4 z-40 bg-amber-500 text-zinc-950 p-4 rounded-full shadow-[0_10px_20px_rgba(245,158,11,0.4)] font-black flex items-center justify-center animate-bounce"
             >
-              🛵
+              {isPickupOrder(trackedOrder)?'🏪':'🛵'}
             </button>
           )}
 
@@ -973,7 +974,7 @@
                      </div>
                      <h2 className="text-2xl font-black text-white mb-2 tracking-tight">Pedido Recebido! 🎉</h2>
                      <p className="text-zinc-400 text-sm mb-4 leading-relaxed">
-                         Olá <strong>{orderSuccess.customerName}</strong>, seu pedido já está no nosso sistema. O tempo estimado de entrega é de aproximadamente <strong className="text-amber-500">30 a 45 minutos</strong>.
+                         Olá <strong>{orderSuccess.customerName}</strong>, seu pedido já está no nosso sistema. {isPickupOrder(orderSuccess) ? 'Você receberá uma mensagem quando estiver pronto para retirada no balcão.' : <>O tempo estimado de entrega é de aproximadamente <strong className="text-amber-500">30 a 45 minutos</strong>.</>}
                      </p>
 
                      {trackedOrder && (
@@ -982,7 +983,7 @@
                            <p className="text-amber-500 font-black text-sm mt-1">
                              {trackedOrder.status === 'pendente' && '📝 Aguardando confirmação'}
                              {trackedOrder.status === 'preparando' && '🍳 Em preparo'}
-                             {trackedOrder.status === 'finalizado' && '🛵 Saiu para entrega'}
+                             {trackedOrder.status === 'finalizado' && (isPickupOrder(trackedOrder) ? '✅ Pronto para retirada no balcão' : '🛵 Saiu para entrega')}
                              {trackedOrder.status === 'cancelado' && '🚫 Cancelado'}
                            </p>
                          </div>
