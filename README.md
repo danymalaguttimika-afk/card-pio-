@@ -18,6 +18,11 @@
 - O workspace de precificação é privado e separado. Sugestões de preço não atualizam produtos, `costPrice`, cardápio ou PDV automaticamente.
 - Não adicionar credenciais, tokens, chaves de serviço ou dados de clientes a este repositório público.
 
+## Prévia visual temporária
+
+- https://danymalaguttimika-afk.github.io/card-pio-/burguer-house-visual-evolucao-preview.html
+- Protótipo demonstrativo para revisão do visual e das animações. Não acessa Firebase, não usa dados reais e não executa operações. Não é uma rota oficial de atendimento.
+
 ## Rotas retiradas
 
 - `burguer-house-precificacao-preview.html` era um protótipo de precificação sem referências ativas. Foi removido após a publicação do painel privado oficial.
