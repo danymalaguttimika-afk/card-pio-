@@ -51,6 +51,19 @@
     input.bh-observation-input::placeholder { color:#806b59 !important; -webkit-text-fill-color:#806b59 !important; opacity:1 !important; }
     input.bh-observation-input:focus { outline:3px solid rgba(255,193,7,.35) !important; border-color:#B71C1C !important; }
   </style>
+<style id="bh-visual-system-menu">
+.menu-product-card{position:relative;overflow:hidden;background:linear-gradient(145deg,#292221,#1c1817)!important;border-color:#493633!important;box-shadow:0 10px 25px #0002;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease!important}
+.menu-product-photo{background:radial-gradient(circle at 50% 40%,#71302d 0,#352321 42%,#1b1716 80%)!important;border:1px solid #493633}
+.menu-product-photo img{transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.menu-photo-placeholder{height:100%;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#d7c7b8;background:radial-gradient(circle at 50% 38%,#5a3028 0,#2a211f 57%,#211c1b 100%);text-align:center}
+.menu-photo-placeholder b{font:700 1.15rem Georgia,serif;letter-spacing:.12em;color:#f4b92e}
+.menu-photo-placeholder span{font-size:.57rem;line-height:1.2;letter-spacing:.03em;text-transform:uppercase;opacity:.82}
+.menu-banner-image{animation:menu-banner-in .55s cubic-bezier(.2,.8,.2,1) both}
+@keyframes menu-banner-in{from{opacity:.55;transform:scale(1.015)}to{opacity:1;transform:scale(1)}}
+@media(hover:hover){.menu-product-card:hover{transform:translateY(-2px);border-color:#f4b92e!important;box-shadow:0 16px 32px #0005,0 0 0 1px #f4b92e20}.menu-product-card:hover img{transform:scale(1.035)}}
+.menu-product-card:focus-visible{outline:3px solid #f4b92e;outline-offset:3px}
+@media(prefers-reduced-motion:reduce){.menu-product-card,.menu-product-photo img,.menu-banner-image{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
 </head>
 <body class="bg-zinc-950 text-white selection:bg-amber-500 selection:text-white">
   
@@ -1191,7 +1204,7 @@
                       const banner = visibleBanners[bannerIndex % visibleBanners.length];
                       return (
                         <div className="relative w-full aspect-[2/1] overflow-hidden">
-                          <img src={banner.imageUrl} alt={banner.title || 'Destaque Burguer House'} className="absolute inset-0 h-full w-full object-cover" loading="eager" />
+                          <img src={banner.imageUrl} alt={banner.title || 'Destaque Burguer House'} className="menu-banner-image absolute inset-0 h-full w-full object-cover" loading="eager" />
                           {(banner.title || banner.subtitle) && <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent px-4 pb-4 pt-12"><div className="max-w-[78%]"><h2 className="font-black text-white text-lg drop-shadow">{banner.title || 'Burguer House'}</h2>{banner.subtitle && <p className="text-sm text-zinc-100 mt-1 drop-shadow">{banner.subtitle}</p>}</div></div>}
                           {visibleBanners.length > 1 && <div className="absolute bottom-4 right-4 z-10 flex gap-2" aria-label="Escolher destaque">{visibleBanners.map((item, index) => <button type="button" key={item.id || index} onClick={() => setBannerIndex(index)} aria-label={`Mostrar destaque ${index + 1}`} aria-current={index === bannerIndex ? 'true' : undefined} className={`h-2.5 rounded-full border border-white/70 shadow transition-all ${index === bannerIndex ? 'w-6 bg-amber-400' : 'w-2.5 bg-zinc-700/70'}`} />)}</div>}
                         </div>
@@ -1209,9 +1222,9 @@
 
               <main className="p-4 space-y-4 pb-32">
                 {filteredProducts.map(product => (
-                  <div key={product.id} onClick={() => { setSelectedProduct(product); setSelectedAddons({}); setProductNote(""); }} className="bg-zinc-900 rounded-3xl p-3 flex gap-4 border border-zinc-800 cursor-pointer active:scale-[0.98] transition-transform">
-                    <div className="w-28 h-28 shrink-0 rounded-2xl bg-zinc-950 flex items-center justify-center overflow-hidden">
-                      {product.imageUrl ? <img src={product.imageUrl} className="w-full h-full object-cover" /> : <span className="text-3xl">🍔</span>}
+                  <div key={product.id} onClick={() => { setSelectedProduct(product); setSelectedAddons({}); setProductNote(""); }} className="menu-product-card bg-zinc-900 rounded-3xl p-3 flex gap-4 border border-zinc-800 cursor-pointer active:scale-[0.98] transition-transform">
+                    <div className="menu-product-photo w-28 h-28 shrink-0 rounded-2xl bg-zinc-950 flex items-center justify-center overflow-hidden">
+                      {product.imageUrl ? <img src={product.imageUrl} alt={product.name} loading="lazy" className="w-full h-full object-cover" /> : <div className="menu-photo-placeholder"><b>BH</b><span>Foto própria<br/>pendente</span></div>}
                     </div>
                     <div className="flex-1 flex flex-col justify-between py-1 pr-1">
                       <div>
