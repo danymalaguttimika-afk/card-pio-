@@ -26,3 +26,9 @@
 ## Rotas retiradas
 
 - `burguer-house-precificacao-preview.html` era um protótipo de precificação sem referências ativas. Foi removido após a publicação do painel privado oficial.
+
+## Cópia temporária de teste — Mesas/Comandas
+
+- **Teste integrado ao layout do PDV (não operacional):** https://danymalaguttimika-afk.github.io/card-pio-/burguer-house-pdv-comandas-test.html
+- Esta página é uma cópia de teste isolada, usa somente produtos e valores fictícios e mantém todos os dados apenas em memória. Não acessa Firebase/APIs, não grava dados, não envia WhatsApp e não imprime. Não use para atender clientes; ao atualizar/fechar a aba, a demonstração é descartada.
+- Não altera nem substitui o PDV oficial, o fallback desktop, as regras do Firestore ou dados reais.
