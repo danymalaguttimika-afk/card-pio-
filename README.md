@@ -42,3 +42,8 @@
 
 - https://danymalaguttimika-afk.github.io/card-pio-/burguer-house-pdv-delivery-comanda-test.html
 - Cópia isolada com seleção Delivery/Comanda para o Caixa e acesso restrito a Comanda para o Garçom. Usa pedidos fictícios e estado em memória; não acessa o cardápio ou o sistema oficial, não grava, não envia e não imprime.
+
+## Cópia de teste do PDV atual com aba Comandas
+
+- https://danymalaguttimika-afk.github.io/card-pio-/burguer-house-pdv-comanda-integrado-test.html
+- Preserva as telas e a navegação existentes do PDV (Pedidos, Balcão, Caixa e Disponibilidade) e acrescenta Comandas. O modo de teste usa dados fictícios em memória, sem conexão ao Firebase, envio de WhatsApp ou impressão; não altera o PDV oficial.
