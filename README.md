@@ -37,3 +37,8 @@
 
 - https://danymalaguttimika-afk.github.io/card-pio-/burguer-house-garcom-caixa-test.html
 - Cópia mobile-first isolada para revisar permissões de Garçom/Caixa, comandas, solicitações e troca de mesa. Usa apenas dados fictícios em memória; sem conexão ao sistema oficial, persistência, envio ou impressão.
+
+## Protótipo de teste — PDV Delivery / Comanda
+
+- https://danymalaguttimika-afk.github.io/card-pio-/burguer-house-pdv-delivery-comanda-test.html
+- Cópia isolada com seleção Delivery/Comanda para o Caixa e acesso restrito a Comanda para o Garçom. Usa pedidos fictícios e estado em memória; não acessa o cardápio ou o sistema oficial, não grava, não envia e não imprime.
